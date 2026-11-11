@@ -55,6 +55,12 @@ final class AppModel {
     private(set) var locationMessage: String?
     private(set) var isResolvingLocation = false
 
+    // MARK: System wallpaper
+    /// A display shows a map still and its own picture couldn't be put back automatically.
+    /// Set by SystemWallpaperSync; the menu and Settings then offer "Restore My Wallpaper…".
+    var wallpaperNeedsManualRestore = false
+    @ObservationIgnored var restoreWallpaperManually: (() -> Void)?
+
     // MARK: Network & trains
     private(set) var rail: RailNetwork?
     private(set) var geo: GeoData?
@@ -129,7 +135,7 @@ final class AppModel {
         tracker.trailDuration = max(10, self.settings.trailMinutes * 60)
         updatePowerMode()
         guard startServices else { return }
-        apiKeys = KeyStore.load()
+        apiKeys = KeyStore.load().filter { $0.key.userSupplied }
         loadData()
         location.onUpdate = { [weak self] coord in self?.systemLocationUpdated(coord) }
         location.onFailure = { [weak self] message in
@@ -656,7 +662,7 @@ final class AppModel {
         for system in region.systems {
             var f = feeds[system] ?? FeedStatus()
             f.sourceName = sources[system]?.name
-            f.needsKey = sources[system] == nil && LiveFeeds.keyKind(for: system) != nil
+            f.needsKey = sources[system] == nil && LiveFeeds.keyKind(for: system)?.userSupplied == true
             if !settings.systems.contains(system) {
                 f.mode = .off
             } else {

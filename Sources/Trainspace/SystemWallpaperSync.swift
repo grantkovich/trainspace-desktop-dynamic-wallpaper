@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 import MapKit
 import SwiftUI
 import TrainspaceCore
@@ -13,9 +14,13 @@ import TrainspaceCore
 final class SystemWallpaperSync {
     private let model: AppModel
     private var timer: Timer?
-    private var renderedKey: [CGDirectDisplayID: String] = [:]
+    private var spaceObserver: NSObjectProtocol?
+    /// Display UUID → cache key of the still now showing, and the still's file.
+    private var renderedKey: [String: String] = [:]
+    private var stills: [String: URL] = [:]
     private var rendering = false
-    private let originalsKey = "trainspace.originalWallpapers"
+    private static let appName = "Trainspace"
+    private static let ledgerKey = "trainspace.wallpaperLedger.v2"
 
     private var directory: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -24,51 +29,129 @@ final class SystemWallpaperSync {
         return dir
     }
 
+    private var ledger: WallpaperLedger {
+        get {
+            guard let data = UserDefaults.standard.data(forKey: Self.ledgerKey),
+                  let ledger = try? JSONDecoder().decode(WallpaperLedger.self, from: data) else { return WallpaperLedger() }
+            return ledger
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) { UserDefaults.standard.set(data, forKey: Self.ledgerKey) }
+            model.wallpaperNeedsManualRestore = newValue.needsManualRestore
+        }
+    }
+
     init(model: AppModel) {
         self.model = model
+        model.wallpaperNeedsManualRestore = ledger.needsManualRestore
         timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
         timer?.tolerance = 2
+        // macOS keeps a desktop picture per Space; NSWorkspace only sees the current one.
+        spaceObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.spaceChanged() }
+        }
         tick()
     }
 
     func tick() {
         guard model.settings.syncSystemWallpaper else {
-            if !renderedKey.isEmpty || hasSavedOriginals { restoreOriginals() }
+            restoreOriginals(retryStuck: false)
             return
         }
         guard !rendering, let center = model.mapCenter, model.rail != nil, model.geo != nil || model.settings.mapStyle != .schematic else { return }
         for screen in NSScreen.screens {
             guard let id = screen.displayID else { continue }
+            let display = screen.displayUUID ?? String(id)
             let key = cacheKey(center: center, screen: screen)
-            if renderedKey[id] == key { continue }
+            if renderedKey[display] == key { continue }
             rendering = true
             Task {
                 defer { self.rendering = false }
                 guard let url = await self.render(screen: screen, id: id, center: center) else { return }
-                self.apply(url, to: screen, id: id)
-                self.renderedKey[id] = key
+                self.apply(url, to: screen, display: display)
+                self.renderedKey[display] = key
             }
             return   // one screen per tick keeps the main thread responsive
         }
     }
 
-    /// Puts back each display's own picture. Called on quit and when the option is turned off.
-    func restoreOriginals() {
-        let originals = UserDefaults.standard.dictionary(forKey: originalsKey) as? [String: String] ?? [:]
-        for screen in NSScreen.screens {
-            guard let id = screen.displayID, let path = originals[String(id)] else { continue }
-            let url = URL(fileURLWithPath: path)
-            if FileManager.default.fileExists(atPath: url.path) {
-                try? NSWorkspace.shared.setDesktopImageURL(url, for: screen, options: [:])
-            }
+    /// A different Space is on screen: give it the current still too (so its menu bar
+    /// matches), or, with the option off, put back its own picture if it still shows a map.
+    private func spaceChanged() {
+        guard model.settings.syncSystemWallpaper else {
+            restoreOriginals()
+            return
         }
-        UserDefaults.standard.removeObject(forKey: originalsKey)
-        renderedKey.removeAll()
+        for screen in NSScreen.screens {
+            guard let display = screen.displayUUID ?? screen.displayID.map({ String($0) }),
+                  let still = stills[display],
+                  NSWorkspace.shared.desktopImageURL(for: screen) != still else { continue }
+            apply(still, to: screen, display: display)
+        }
     }
 
-    private var hasSavedOriginals: Bool { UserDefaults.standard.dictionary(forKey: originalsKey) != nil }
+    /// Puts back each display's own picture wherever it shows one of our stills. Called on
+    /// quit, on Space changes and while the option is off. Cheap when there's nothing to do.
+    /// The 5-second timer passes `retryStuck: false` so a failed restore isn't retried (and
+    /// logged) every tick; quitting and Space changes try again.
+    func restoreOriginals(retryStuck: Bool = true) {
+        var ledger = self.ledger
+        let before = ledger
+        for screen in NSScreen.screens {
+            guard let display = screen.displayUUID ?? screen.displayID.map({ String($0) }) else { continue }
+            if !retryStuck && ledger.stuck.contains(display) { continue }
+            let current = NSWorkspace.shared.desktopImageURL(for: screen)?.path
+            switch ledger.restoreAction(display: display, current: current, appName: Self.appName) {
+            case .nothingToDo:
+                continue
+            case .restore(let path):
+                do {
+                    try NSWorkspace.shared.setDesktopImageURL(URL(fileURLWithPath: path), for: screen, options: [:])
+                    ledger.restored(display: display)
+                } catch {
+                    // Usually the sandbox: the picture is somewhere Trainspace can't read.
+                    Diagnostics.log.error("Restoring the desktop picture failed: \(error.localizedDescription, privacy: .public)")
+                    ledger.failed(display: display)
+                }
+            case .unknown:
+                ledger.failed(display: display)
+            }
+        }
+        if ledger != before { self.ledger = ledger }
+        renderedKey.removeAll()
+        stills.removeAll()
+    }
+
+    /// Asks the user to pick their picture, for displays where it couldn't be put back on its
+    /// own. Picking it in an open panel also gives the sandbox permission to use the file.
+    func restoreManually() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose your desktop picture"
+        panel.message = "Trainspace couldn't put your own wallpaper back by itself. Pick it here."
+        panel.prompt = "Use as Wallpaper"
+        panel.allowedContentTypes = [.image]
+        panel.directoryURL = URL(fileURLWithPath: "/System/Library/Desktop Pictures")
+        NSApp.activate()
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        var ledger = self.ledger
+        var displays: [String] = []
+        for screen in NSScreen.screens {
+            guard let display = screen.displayUUID ?? screen.displayID.map({ String($0) }) else { continue }
+            let current = NSWorkspace.shared.desktopImageURL(for: screen)?.path
+            let showsOurs = current.map { WallpaperLedger.isOurs($0, appName: Self.appName) } ?? false
+            guard showsOurs || ledger.stuck.contains(display) else { continue }
+            if !model.settings.syncSystemWallpaper {
+                try? NSWorkspace.shared.setDesktopImageURL(url, for: screen, options: [:])
+            }
+            displays.append(display)
+        }
+        ledger.chose(url.path, for: displays)
+        self.ledger = ledger
+    }
 
     // MARK: Rendering
 
@@ -112,23 +195,28 @@ final class SystemWallpaperSync {
         return url
     }
 
-    private func apply(_ url: URL, to screen: NSScreen, id: CGDirectDisplayID) {
-        var originals = UserDefaults.standard.dictionary(forKey: originalsKey) as? [String: String] ?? [:]
-        if let current = NSWorkspace.shared.desktopImageURL(for: screen),
-           !current.path.hasPrefix(directory.path) {
-            // The user's own picture (or one they picked since we last set ours): remember it.
-            originals[String(id)] = current.path
-            UserDefaults.standard.set(originals, forKey: originalsKey)
-        }
+    private func apply(_ url: URL, to screen: NSScreen, display: String) {
+        var ledger = self.ledger
+        ledger.observe(display: display, current: NSWorkspace.shared.desktopImageURL(for: screen)?.path, appName: Self.appName)
+        self.ledger = ledger
         let options: [NSWorkspace.DesktopImageOptionKey: Any] = [
             .imageScaling: NSImageScaling.scaleProportionallyUpOrDown.rawValue,
             .allowClipping: true,
         ]
         do {
             try NSWorkspace.shared.setDesktopImageURL(url, for: screen, options: options)
+            stills[display] = url
         } catch {
             Diagnostics.log.error("setDesktopImageURL failed: \(error.localizedDescription, privacy: .public)")
         }
+    }
+}
+
+extension NSScreen {
+    /// Stable across reboots and reconnects, unlike the CGDirectDisplayID.
+    var displayUUID: String? {
+        guard let id = displayID, let uuid = CGDisplayCreateUUIDFromDisplayID(id)?.takeRetainedValue() else { return nil }
+        return CFUUIDCreateString(nil, uuid) as String
     }
 }
 

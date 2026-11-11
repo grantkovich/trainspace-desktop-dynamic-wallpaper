@@ -644,7 +644,6 @@ struct FeedBadge: View {
 
 struct LiveDataSettings: View {
     @Bindable var model: AppModel
-    @State private var wmata = ""
     @State private var swiftly = ""
 
     var body: some View {
@@ -670,18 +669,11 @@ struct LiveDataSettings: View {
         case "nyc": "MTA’s subway, LIRR and Metro-North feeds need no key; subway trains are placed from arrival predictions, since the feeds give no positions underground. NJ TRANSIT and PATH run on the timetable: NJ TRANSIT’s feed needs a developer account, and PATH publishes only station arrival times."
         case "phl": "SEPTA’s feeds need no key. PATCO and NJ TRANSIT run on the timetable: PATCO publishes nothing live, and NJ TRANSIT’s feed needs a developer account."
         case "bos": "MBTA’s feeds need no key."
-        default: "Amtrak, MARC and VRE need no key. Without a key, Metrorail, Light RailLink and Metro SubwayLink run on the timetable."
+        default: "Amtrak, MARC and VRE need no key. Metrorail runs on the timetable: WMATA’s terms don’t let apps ask you for your own key. Without a Swiftly key, Light RailLink and Metro SubwayLink run on the timetable too."
         }
     }
 
     @ViewBuilder private var dcKeys: some View {
-        SettingsGroup(title: "Metrorail",
-                      footer: "A free key from WMATA’s developer site (Products › Default Tier). Stored in your keychain.") {
-            KeyField(title: "WMATA API key", text: $wmata) { model.setAPIKey(wmata, for: .wmata) }
-            Link("Get a key at developer.wmata.com", destination: URL(string: "https://developer.wmata.com/")!)
-                .font(.callout)
-        }
-
         SettingsGroup(title: "Light RailLink and Metro SubwayLink",
                       footer: "MDOT MTA publishes these through Swiftly. Request a free key from MTA’s developer page. Stored in your keychain.") {
             KeyField(title: "Swiftly API key", text: $swiftly) { model.setAPIKey(swiftly, for: .swiftly) }
@@ -689,7 +681,6 @@ struct LiveDataSettings: View {
                 .font(.callout)
         }
         .onAppear {
-            wmata = model.apiKeys[.wmata] ?? ""
             swiftly = model.apiKeys[.swiftly] ?? ""
         }
     }
@@ -780,8 +771,15 @@ struct DesktopSettings: View {
 
     var body: some View {
         SettingsGroup(title: "Desktop",
-                      footer: "macOS tints the menu bar, Mission Control and Show Desktop from the system wallpaper. Matching it to the map keeps those see-through. Your own wallpaper comes back when Trainspace quits or this is turned off.") {
+                      footer: "macOS tints the menu bar, Mission Control and Show Desktop from the system wallpaper. Matching it to the map keeps those see-through. Your own wallpaper comes back when Trainspace quits or this is turned off. If you delete Trainspace without quitting it, pick your wallpaper again in System Settings › Wallpaper.") {
             Toggle("Match the menu bar and system wallpaper", isOn: $model.settings.syncSystemWallpaper)
+            if model.wallpaperNeedsManualRestore {
+                SettingsRow(title: "Your wallpaper") {
+                    Button("Restore My Wallpaper…") { model.restoreWallpaperManually?() }
+                }
+                Text("Trainspace couldn't put your own picture back by itself, usually because it's in a folder Trainspace isn't allowed to read. Pick it once and Trainspace will use it from then on.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             SettingsRow(title: "Displays") {
                 Picker("Displays", selection: $model.settings.displays) {
                     Text("All displays").tag(DisplayTarget.all)
@@ -799,6 +797,16 @@ struct DesktopSettings: View {
                     }
                 }
             if let loginError { Text(loginError).font(.caption).foregroundStyle(.orange) }
+        }
+
+        SettingsGroup(title: "Help",
+                      footer: "Diagnostics are versions, displays and feed status, with no location or keys. Paste them into your message.") {
+            SettingsRow(title: "Something wrong?") {
+                HStack {
+                    Button("Copy Diagnostics") { Diagnostics.copySummary(model: model) }
+                    Link("Send Feedback", destination: URL(string: "https://grantkovich.com/contact/")!)
+                }
+            }
         }
 
         SettingsGroup(title: "Updates",

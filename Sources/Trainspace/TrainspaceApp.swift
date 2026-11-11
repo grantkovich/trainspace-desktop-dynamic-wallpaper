@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         wallpaper = WallpaperController(model: model)
         wallpaper?.show()
         systemWallpaper = SystemWallpaperSync(model: model)
+        model.restoreWallpaperManually = { [weak self] in self?.systemWallpaper?.restoreManually() }
         if !model.settings.hasCompletedOnboarding {
             WindowRouter.shared.open(.welcome)
         }

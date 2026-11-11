@@ -83,3 +83,12 @@ func fixture(_ name: String) throws -> Data {
         #expect(AmtrakFeed.compass("?") == nil)
     }
 }
+
+@Suite struct KeyPolicyTests {
+    /// WMATA's Transit Data Terms (§5): an app may not require its users to get their own keys.
+    @Test func metrorailNeverAsksForTheUsersOwnKey() {
+        #expect(LiveFeeds.keyKind(for: .metrorail) == .wmata)
+        #expect(!LiveFeeds.KeyKind.wmata.userSupplied)
+        #expect(LiveFeeds.KeyKind.swiftly.userSupplied)
+    }
+}

@@ -73,10 +73,19 @@ struct MenuPanel: View {
                     Slider(value: $model.settings.zoomMiles, in: WallpaperSettings.zoomRange)
                 }
             }
+            if model.wallpaperNeedsManualRestore {
+                Divider()
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Trainspace couldn't put your own wallpaper back by itself.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Button("Restore My Wallpaper…") { model.restoreWallpaperManually?() }
+                }
+            }
             Divider()
             HStack {
                 Button(model.paused ? "Resume" : "Pause") { model.paused.toggle() }
                 Spacer()
+                Button("About") { AboutPanel.show() }
                 Button("Settings…") { WindowRouter.shared.open(.settings) }
                 Button("Quit") { NSApp.terminate(nil) }
             }

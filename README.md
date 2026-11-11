@@ -30,8 +30,11 @@ on battery.
     no GPS underground), so subway trains are placed along their timetabled trip, shifted by
     how late the predictions say they're running; Metro-North's trains without a position are
     placed the same way.
-  - Metrorail, Light RailLink and Metro SubwayLink go live once you paste a free API key
+  - Light RailLink and Metro SubwayLink go live once you paste a free Swiftly API key
     (Settings › Live Data).
+  - Metrorail runs on the timetable. WMATA's Transit Data Terms (§5) don't let an app require
+    its users to get their own WMATA keys; live Metrorail would need WMATA's written
+    permission for a relay that serves everyone with one key.
   - NJ TRANSIT (needs a developer account), PATH (publishes only station arrival times) and
     PATCO (publishes nothing live) run on the timetable. So do lines a live feed leaves out:
     SEPTA's feed carries its trolleys but not the L and B, which come from the timetable.
@@ -138,7 +141,6 @@ Settings › Station View. On first launch a welcome window previews Washington.
 
 | System | Key | Where |
 |---|---|---|
-| Metrorail | WMATA API key | [developer.wmata.com](https://developer.wmata.com) (Default Tier) |
 | Light RailLink, Metro SubwayLink | Swiftly API key | [MTA developer resources](https://www.mta.maryland.gov/developer-resources) → request a Swiftly key |
 
 Keys are stored in your login keychain. Everything else that's live needs none.
@@ -195,7 +197,7 @@ Tools/                   data builders (GTFS + Natural Earth → Resources/rail-
   separate layers. The default is 20 fps; drawing stops when windows cover the desktop, and
   everything stops when the screen is locked or asleep.
 - **Diagnostics:** every 30 s the app logs its render mode, frames and per-system feed state:
-  `log stream --level info --predicate 'subsystem == "com.trainspace.wallpaper"'`.
+  `log stream --level info --predicate 'subsystem == "com.grantkovich.trainspace"'`.
 
 ## Data
 
@@ -213,4 +215,4 @@ Tools/                   data builders (GTFS + Natural Earth → Resources/rail-
   one marker (Penn Station: subway, LIRR, NJ TRANSIT, Amtrak), named for the metro station.
 - **Base map:** [Natural Earth](https://www.naturalearthdata.com) 10m (public domain), clipped to each region.
 
-Only API keys go to the feed providers. Your location never leaves your Mac.
+Only API keys go to the feed providers. Your location isn't sent to any train feed; Apple receives it to look up place names and, with the Apple Map style, to load the map.

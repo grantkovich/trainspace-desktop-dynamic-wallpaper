@@ -1,6 +1,6 @@
 # Trainspace — build with the Swift toolchain alone (Xcode not required).
 APP_NAME   := Trainspace
-BUNDLE_ID  := com.trainspace.wallpaper
+BUNDLE_ID  := com.grantkovich.trainspace
 VERSION    ?= 1.0.0
 BUILD_DIR  := build
 APP        := $(BUILD_DIR)/$(APP_NAME).app
@@ -13,13 +13,29 @@ TEST_LIB   := $(firstword $(wildcard $(DEV_DIR)/Library/Developer/usr/lib $(DEV_
 TEST_FLAGS := $(if $(TEST_FW),-Xswiftc -F$(TEST_FW) -Xlinker -F$(TEST_FW) -Xlinker -rpath -Xlinker $(TEST_FW)) \
               $(if $(TEST_LIB),-Xlinker -rpath -Xlinker $(TEST_LIB))
 
+# Signing. Everyday builds are ad-hoc ("-"). Releases are signed with the self-signed
+# "Grant Kovich Code Signing" certificate in its own keychain (see RELEASING.md): its
+# designated requirement stays the same from release to release, so macOS keeps the
+# location permission and Keychain access across updates. No paid Apple Developer Program needed.
 SIGN_ID    ?= -
+SIGN_KEYCHAIN ?=
 ENTITLEMENTS := Resources/Trainspace.entitlements
+INSTALL_DIR ?= /Applications
 
-.PHONY: build test app run install release dmg clean data snapshots icon
+# Build number (CFBundleVersion): the commit count, so each release is higher than the last.
+BUILD      ?= $(shell git rev-list --count HEAD 2>/dev/null || echo 1)
+# Everyday builds target this Mac; `make release` builds Apple Silicon and Intel.
+ARCHS      ?= $(shell uname -m)
+MIN_OS     := 14.0
+triple      = $(1)-apple-macosx$(MIN_OS)
+bin_path    = $$(swift build -c $(CONFIG) --triple $(call triple,$(1)) --show-bin-path)
+ZIP        := $(BUILD_DIR)/$(APP_NAME)-$(VERSION).zip
+DMG        := $(BUILD_DIR)/$(APP_NAME)-$(VERSION).dmg
+
+.PHONY: build test app run install release zip dmg clean data snapshots icon
 
 build:
-	swift build -c $(CONFIG)
+	@for a in $(ARCHS); do swift build -c $(CONFIG) --triple $$a-apple-macosx$(MIN_OS) || exit 1; done
 
 test:
 	swift test $(TEST_FLAGS)
@@ -27,40 +43,61 @@ test:
 app: build
 	rm -rf $(APP)
 	mkdir -p $(APP)/Contents/MacOS $(APP)/Contents/Resources
-	cp "$$(swift build -c $(CONFIG) --show-bin-path)/$(APP_NAME)" $(APP)/Contents/MacOS/$(APP_NAME)
-	sed -e 's/$$(VERSION)/$(VERSION)/g' -e 's/$$(BUNDLE_ID)/$(BUNDLE_ID)/g' Resources/Info.plist > $(APP)/Contents/Info.plist
+	lipo -create $(foreach a,$(ARCHS),"$(call bin_path,$(a))/$(APP_NAME)") -output $(APP)/Contents/MacOS/$(APP_NAME)
+	sed -e 's/$$(VERSION)/$(VERSION)/g' -e 's/$$(BUILD)/$(BUILD)/g' -e 's/$$(BUNDLE_ID)/$(BUNDLE_ID)/g' Resources/Info.plist > $(APP)/Contents/Info.plist
 	cp Resources/geodata-*.bin Resources/rail-*.bin $(APP)/Contents/Resources/
 	mkdir -p $(APP)/Contents/Resources/Fonts && cp Resources/Fonts/* $(APP)/Contents/Resources/Fonts/
 	cp Resources/AppIcon.icns $(APP)/Contents/Resources/ 2>/dev/null || true
-	codesign --force --options runtime --timestamp=none --entitlements $(ENTITLEMENTS) --sign "$(SIGN_ID)" $(APP)
-	@echo "Built $(APP)"
+	codesign --force --options runtime $(if $(NOTARY_PROFILE),--timestamp,--timestamp=none) \
+	  --entitlements $(ENTITLEMENTS) $(if $(SIGN_KEYCHAIN),--keychain "$(SIGN_KEYCHAIN)") --sign "$(SIGN_ID)" $(APP)
+	@echo "Built $(APP) ($(VERSION) build $(BUILD), $(ARCHS))"
 
 run: app
 	open $(APP)
 
-# Build and copy into /Applications (quits a running copy first).
+# Build, then replace the copy in /Applications and relaunch it. Quitting (rather than
+# killing) lets Trainspace restore your own system wallpaper before the new copy takes over.
+# Quits by name too, so a copy with an older bundle ID also gets the chance to restore it.
 install: app
-	-osascript -e 'tell application "$(APP_NAME)" to quit' 2>/dev/null
-	rm -rf /Applications/$(APP_NAME).app
-	ditto $(APP) /Applications/$(APP_NAME).app
-	@echo "Installed /Applications/$(APP_NAME).app"
+	@if pgrep -x $(APP_NAME) >/dev/null; then \
+	  echo "Quitting running $(APP_NAME)…"; \
+	  osascript -e 'tell application id "$(BUNDLE_ID)" to quit' >/dev/null 2>&1 || true; \
+	  osascript -e 'tell application "$(APP_NAME)" to quit' >/dev/null 2>&1 || true; \
+	  for i in $$(seq 1 40); do pgrep -x $(APP_NAME) >/dev/null || break; sleep 0.25; done; \
+	  if pgrep -x $(APP_NAME) >/dev/null; then echo "$(APP_NAME) didn't quit; close it and try again"; exit 1; fi; \
+	fi
+	rm -rf "$(INSTALL_DIR)/$(APP_NAME).app"
+	ditto $(APP) "$(INSTALL_DIR)/$(APP_NAME).app"
+	codesign --verify --deep --strict "$(INSTALL_DIR)/$(APP_NAME).app"
+	open "$(INSTALL_DIR)/$(APP_NAME).app"
+	@echo "Installed and launched $(INSTALL_DIR)/$(APP_NAME).app"
 
-# Developer ID build + notarization:
-#   make release SIGN_ID="Developer ID Application: Your Name (TEAMID)" NOTARY_PROFILE=trainspace
-# where NOTARY_PROFILE was stored with `xcrun notarytool store-credentials`.
-release: app
-	@test "$(SIGN_ID)" != "-" || (echo "Set SIGN_ID to a Developer ID Application identity"; exit 1)
-	codesign --force --options runtime --timestamp --entitlements $(ENTITLEMENTS) --sign "$(SIGN_ID)" $(APP)
-	$(MAKE) dmg
+# Release: a universal app signed with SIGN_ID, as a zip (for install.sh and updates) and a
+# DMG, with SHA-256 checksums. Run `make data` first so the timetables are current.
+# See RELEASING.md.
+#   make release SIGN_ID="Grant Kovich Code Signing" SIGN_KEYCHAIN=~/Library/Keychains/wallpaper-signing.keychain-db
+# With a paid Developer ID, add NOTARY_PROFILE (stored with `xcrun notarytool store-credentials`)
+# and the DMG is notarized and stapled too.
+release:
+	@test "$(SIGN_ID)" != "-" || (echo "Set SIGN_ID to the release signing identity (see RELEASING.md)"; exit 1)
+	$(MAKE) app ARCHS="arm64 x86_64"
+	codesign --verify --deep --strict $(APP)
+	codesign -d -r- $(APP) 2>&1 | grep designated
+	$(MAKE) zip dmg
 	@if [ -n "$(NOTARY_PROFILE)" ]; then \
-	  xcrun notarytool submit $(BUILD_DIR)/$(APP_NAME).dmg --keychain-profile "$(NOTARY_PROFILE)" --wait && \
-	  xcrun stapler staple $(BUILD_DIR)/$(APP_NAME).dmg; \
-	else echo "NOTARY_PROFILE not set; skipping notarization"; fi
+	  xcrun notarytool submit $(DMG) --keychain-profile "$(NOTARY_PROFILE)" --wait && \
+	  xcrun stapler staple $(DMG); \
+	fi
+	cd $(BUILD_DIR) && shasum -a 256 $(notdir $(ZIP)) $(notdir $(DMG)) | tee SHA256SUMS
+
+zip:
+	rm -f $(ZIP)
+	ditto -c -k --keepParent $(APP) $(ZIP)
 
 dmg:
-	rm -rf $(BUILD_DIR)/dmg $(BUILD_DIR)/$(APP_NAME).dmg
+	rm -rf $(BUILD_DIR)/dmg $(DMG)
 	mkdir -p $(BUILD_DIR)/dmg && cp -R $(APP) $(BUILD_DIR)/dmg/ && ln -s /Applications $(BUILD_DIR)/dmg/Applications
-	hdiutil create -volname $(APP_NAME) -srcfolder $(BUILD_DIR)/dmg -ov -format UDZO $(BUILD_DIR)/$(APP_NAME).dmg
+	hdiutil create -volname $(APP_NAME) -srcfolder $(BUILD_DIR)/dmg -ov -format UDZO $(DMG)
 
 # Re-render Resources/AppIcon.icns from the AppIcon SwiftUI view.
 icon:

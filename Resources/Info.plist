@@ -21,7 +21,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>$(VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>$(VERSION)</string>
+	<string>$(BUILD)</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.lifestyle</string>
 	<key>LSMinimumSystemVersion</key>
@@ -31,10 +31,10 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSLocationUsageDescription</key>
-	<string>Trainspace centers the live train map on your location. Your location never leaves your Mac.</string>
+	<string>Trainspace centers the live train map on your location. It isn't sent to the train feeds. Apple receives it to look up the place name and, with the Apple Map style, to load the map.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Trainspace centers the live train map on your location. Your location never leaves your Mac.</string>
+	<string>Trainspace centers the live train map on your location. It isn't sent to the train feeds. Apple receives it to look up the place name and, with the Apple Map style, to load the map.</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>Train data: WMATA, MDOT MTA, VRE, Amtrak. Map data: Natural Earth.</string>
+	<string>© 2026 Grant Kovich. Train data: WMATA, MDOT MTA, VRE, Amtrak, MTA, NJ TRANSIT, PATH, SEPTA, PATCO, MBTA (MassDOT). Map data: Natural Earth.</string>
 </dict>
 </plist>

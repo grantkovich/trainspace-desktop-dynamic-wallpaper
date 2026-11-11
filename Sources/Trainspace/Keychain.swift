@@ -4,7 +4,7 @@ import TrainspaceCore
 
 /// API keys live in the login keychain, not in preferences.
 enum KeyStore {
-    private static let service = "com.trainspace.wallpaper.api-keys"
+    private static let service = "com.grantkovich.trainspace.api-keys"
 
     static func load() -> [LiveFeeds.KeyKind: String] {
         var out: [LiveFeeds.KeyKind: String] = [:]

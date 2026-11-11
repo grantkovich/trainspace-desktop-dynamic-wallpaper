@@ -25,7 +25,7 @@ get amtrak https://content.amtrak.com/content/gtfs/GTFS.zip
 get nyct-subway https://rrgtfsfeeds.s3.amazonaws.com/gtfs_subway.zip
 get lirr https://rrgtfsfeeds.s3.amazonaws.com/gtfslirr.zip
 get mnr https://rrgtfsfeeds.s3.amazonaws.com/gtfsmnr.zip
-get path http://data.trilliumtransit.com/gtfs/path-nj-us/path-nj-us.zip
+get path https://data.trilliumtransit.com/gtfs/path-nj-us/path-nj-us.zip
 # NJ TRANSIT's own feed needs a developer login; the Mobility Database mirrors rail + light rail.
 get njt-rail https://files.mobilitydatabase.org/mdb-509/latest.zip
 # Philadelphia (SEPTA publishes rail and bus/trolley/metro as two zips inside one).

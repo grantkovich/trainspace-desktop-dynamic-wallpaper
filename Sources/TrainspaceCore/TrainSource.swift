@@ -15,7 +15,11 @@ public enum SourceError: Error, Equatable {
     case unauthorized
 }
 
-let userAgent = "Trainspace/1.0 (macOS live wallpaper)"
+/// Names the app, its version and a page where feed operators can reach the developer.
+let userAgent: String = {
+    let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+    return "Trainspace/\(version) (macOS live wallpaper; +https://grantkovich.com/trainspace/)"
+}()
 
 extension URLSession {
     /// No cookies or cache: every poll should hit the network.
@@ -308,6 +312,11 @@ public enum LiveFeeds {
         case wmata
         /// Swiftly, which serves MDOT MTA's Light Rail and Metro Subway feeds.
         case swiftly
+
+        /// Whether people may paste their own key. WMATA's Transit Data Terms (§5) don't let
+        /// an app require its users to get their own WMATA keys, so Metrorail runs on the
+        /// timetable unless WMATA approves a relay that serves everyone with one key.
+        public var userSupplied: Bool { self != .wmata }
     }
 
     public static func keyKind(for system: TransitSystem) -> KeyKind? {
