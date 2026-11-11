@@ -395,8 +395,11 @@ public enum LiveFeeds {
     public static let timetableOnly: Set<TransitSystem> = [.njtRail, .njtLightRail, .path, .patco]
 
     /// The live source for `system`, or nil when it needs a key that hasn't been set (or has none).
+    /// `allowUnofficial` turns on feeds that aren't a published API (today only Amtrak's map
+    /// feed). It's off unless the user opts in.
     public static func source(for system: TransitSystem, keys: [KeyKind: String], network: RailNetwork?,
-                              estimator: ScheduleEstimator? = nil, region: GeoBounds) -> (any TrainSource)? {
+                              estimator: ScheduleEstimator? = nil, region: GeoBounds,
+                              allowUnofficial: Bool = false) -> (any TrainSource)? {
         func key(_ kind: KeyKind) -> String? {
             guard let k = keys[kind]?.trimmingCharacters(in: .whitespacesAndNewlines), !k.isEmpty else { return nil }
             return k
@@ -422,6 +425,7 @@ public enum LiveFeeds {
                                       url: URL(string: "https://gtfs.vre.org/containercdngtfsupload/VehiclePositionFeed")!,
                                       minimumInterval: 60, network: network)
         case .amtrak:
+            guard allowUnofficial else { return nil }
             return AmtrakSource(bounds: region, network: network)
         case .lightRail:
             guard let k = key(.swiftly) else { return nil }

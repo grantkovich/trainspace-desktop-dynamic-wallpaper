@@ -106,6 +106,10 @@ public struct WallpaperSettings: Codable, Hashable, Sendable {
     public var agencyTypography = true
     /// Name every station with a small sign in its railway's style, as on the platform.
     public var stationSigns = true
+    /// Live Amtrak positions from the feed behind Amtrak's Track-a-Train map. Amtrak has no
+    /// official public API, so this is off unless the user turns it on; without it Amtrak
+    /// runs on its published timetable.
+    public var liveAmtrak = false
 
     public var hasCompletedOnboarding = false
 
@@ -127,7 +131,7 @@ public struct WallpaperSettings: Codable, Hashable, Sendable {
              showRangeRings, showDotGrid, tintAppleMap, systems, showScheduled, labelMode, colorMode, trailMinutes, glyph,
              pulse, brightness, appearance, dynamicSource, infoEnabled, infoCorner, infoShowClock, infoShowCoordinates,
              infoShowCount, infoShowNearest, infoShowLegend, pollInterval, batterySaver, fpsCap, displays,
-             syncSystemWallpaper, viewMode, stationKey, stationZoomMiles, agencyTypography, stationSigns, hasCompletedOnboarding,
+             syncSystemWallpaper, viewMode, stationKey, stationZoomMiles, agencyTypography, stationSigns, liveAmtrak, hasCompletedOnboarding,
              schemaVersion
     }
 
@@ -177,6 +181,7 @@ public struct WallpaperSettings: Codable, Hashable, Sendable {
         stationZoomMiles = v(.stationZoomMiles, d.stationZoomMiles)
         agencyTypography = v(.agencyTypography, d.agencyTypography)
         stationSigns = v(.stationSigns, d.stationSigns)
+        liveAmtrak = v(.liveAmtrak, d.liveAmtrak)
         hasCompletedOnboarding = v(.hasCompletedOnboarding, d.hasCompletedOnboarding)
         schemaVersion = v(.schemaVersion, 1)
         if schemaVersion < 2 {
@@ -227,6 +232,7 @@ public struct WallpaperSettings: Codable, Hashable, Sendable {
         try c.encode(stationZoomMiles, forKey: .stationZoomMiles)
         try c.encode(agencyTypography, forKey: .agencyTypography)
         try c.encode(stationSigns, forKey: .stationSigns)
+        try c.encode(liveAmtrak, forKey: .liveAmtrak)
 
         try c.encode(hasCompletedOnboarding, forKey: .hasCompletedOnboarding)
         try c.encode(schemaVersion, forKey: .schemaVersion)

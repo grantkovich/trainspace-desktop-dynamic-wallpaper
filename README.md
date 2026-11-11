@@ -25,8 +25,9 @@ on battery.
   - Stations named by importance as you zoom in.
   - Trains snapped to the track; between updates they keep moving *along* it, around curves.
 - **Live where possible, timetable everywhere else:**
-  - Amtrak, MARC, VRE, MTA (subway, Staten Island, LIRR, Metro-North), SEPTA and MBTA are live
-    with no setup. New York's subway feeds give arrival predictions but no positions (there's
+  - MARC, VRE, MTA (subway, Staten Island, LIRR, Metro-North), SEPTA and MBTA are live
+    with no setup. Amtrak runs on its published timetable unless you turn on live Amtrak
+    (Settings › Live Data), which reads Amtrak's Track-a-Train map feed and is unofficial. New York's subway feeds give arrival predictions but no positions (there's
     no GPS underground), so subway trains are placed along their timetabled trip, shifted by
     how late the predictions say they're running; Metro-North's trains without a position are
     placed the same way.

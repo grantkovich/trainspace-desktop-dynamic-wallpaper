@@ -334,6 +334,10 @@ final class AppModel {
 
     private func settingsChanged(from old: WallpaperSettings) {
         if old.region != settings.region { regionChanged() }
+        if old.liveAmtrak != settings.liveAmtrak {
+            if !settings.liveAmtrak { tracker.removeAll { $0.system == .amtrak && !$0.isScheduled } }
+            rebuildSources()
+        }
         if old.location != settings.location { applyLocation() }
         if old.pollInterval != settings.pollInterval || old.fpsCap != settings.fpsCap || old.batterySaver != settings.batterySaver {
             updatePowerMode()
@@ -489,7 +493,8 @@ final class AppModel {
         let bounds = rail?.coverage ?? region.bounds
         var next: [TransitSystem: any TrainSource] = [:]
         for system in rail?.systems ?? [] {
-            if let s = LiveFeeds.source(for: system, keys: apiKeys, network: rail, estimator: estimator, region: bounds) {
+            if let s = LiveFeeds.source(for: system, keys: apiKeys, network: rail, estimator: estimator, region: bounds,
+                                        allowUnofficial: settings.liveAmtrak) {
                 next[system] = s
             }
         }

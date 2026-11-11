@@ -660,6 +660,11 @@ struct LiveDataSettings: View {
             }
         }
 
+        SettingsGroup(title: "Amtrak",
+                      footer: "Amtrak has no public API for train positions. This reads the feed behind Amtrak’s Track a Train map, as community trackers do. It’s unofficial and can stop working or be wrong at any time; turned off, Amtrak runs on its published timetable.") {
+            Toggle("Live Amtrak positions (unofficial)", isOn: $model.settings.liveAmtrak)
+        }
+
         if !LiveFeeds.KeyKind.kinds(for: model.region).isEmpty { keys }
     }
 
@@ -668,7 +673,7 @@ struct LiveDataSettings: View {
         case "nyc": "MTA’s subway, LIRR and Metro-North feeds need no key; subway trains are placed from arrival predictions, since the feeds give no positions underground. NJ TRANSIT and PATH run on the timetable: NJ TRANSIT’s feed needs a developer account, and PATH publishes only station arrival times."
         case "phl": "SEPTA’s feeds need no key. PATCO and NJ TRANSIT run on the timetable: PATCO publishes nothing live, and NJ TRANSIT’s feed needs a developer account."
         case "bos": "MBTA’s feeds need no key."
-        default: "Amtrak, MARC and VRE need no key. Metrorail, Light RailLink and Metro SubwayLink go live with your own free keys below, and run on the timetable without them."
+        default: "MARC and VRE need no key. Metrorail, Light RailLink and Metro SubwayLink go live with your own free keys below, and run on the timetable without them."
         }
     }
 

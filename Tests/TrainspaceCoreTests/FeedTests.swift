@@ -106,3 +106,23 @@ func fixture(_ name: String) throws -> Data {
         }
     }
 }
+
+@Suite struct UnofficialFeedTests {
+    let bounds = GeoBounds(minLat: 37.8, maxLat: 40.2, minLon: -78.8, maxLon: -75.4)
+
+    /// Live Amtrak reads Amtrak's map feed (there's no official API), so it's opt-in.
+    @Test func liveAmtrakIsOffUnlessTurnedOn() {
+        #expect(!WallpaperSettings().liveAmtrak)
+        #expect(LiveFeeds.source(for: .amtrak, keys: [:], network: nil, region: bounds) == nil)
+        #expect(LiveFeeds.source(for: .amtrak, keys: [:], network: nil, region: bounds, allowUnofficial: true) != nil)
+        // Official feeds don't depend on the switch.
+        #expect(LiveFeeds.source(for: .marc, keys: [:], network: nil, region: bounds) != nil)
+    }
+
+    @Test func liveAmtrakSurvivesASaveAndLoad() throws {
+        var s = WallpaperSettings()
+        s.liveAmtrak = true
+        let back = try JSONDecoder().decode(WallpaperSettings.self, from: JSONEncoder().encode(s))
+        #expect(back.liveAmtrak)
+    }
+}
