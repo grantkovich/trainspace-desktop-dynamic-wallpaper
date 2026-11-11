@@ -313,10 +313,59 @@ public enum LiveFeeds {
         /// Swiftly, which serves MDOT MTA's Light Rail and Metro Subway feeds.
         case swiftly
 
-        /// Whether people may paste their own key. WMATA's Transit Data Terms (§5) don't let
-        /// an app require its users to get their own WMATA keys, so Metrorail runs on the
-        /// timetable unless WMATA approves a relay that serves everyone with one key.
-        public var userSupplied: Bool { self != .wmata }
+        // Keys are optional and personal. Each person requests their own, free, from the
+        // agency; it stays in their keychain. Trainspace never ships or shares a key, and
+        // every keyed system runs on the timetable without one. (WMATA's terms bar apps that
+        // *require* users to get their own key; this one doesn't.)
+
+        /// What the key is called on the provider's site.
+        public var title: String {
+            switch self {
+            case .wmata: "WMATA API key"
+            case .swiftly: "Swiftly API key"
+            }
+        }
+
+        /// The systems a key turns live.
+        public var systems: [TransitSystem] {
+            TransitSystem.allCases.filter { LiveFeeds.keyKind(for: $0) == self }
+        }
+
+        /// Where a person signs up for their own key.
+        public var signupURL: URL {
+            switch self {
+            case .wmata: URL(string: "https://developer.wmata.com/")!
+            case .swiftly: URL(string: "https://www.mta.maryland.gov/developer-resources")!
+            }
+        }
+
+        public var signupName: String {
+            switch self {
+            case .wmata: "developer.wmata.com"
+            case .swiftly: "MDOT MTA developer resources"
+            }
+        }
+
+        /// How to get the key, in order.
+        public var steps: [String] {
+            switch self {
+            case .wmata: [
+                "Sign up for a free account at developer.wmata.com.",
+                "Under Products, subscribe to Default Tier.",
+                "On your Profile page, copy the Primary key and paste it here.",
+            ]
+            case .swiftly: [
+                "Open MDOT MTA’s developer resources page.",
+                "Request a Swiftly API key for the real-time feeds. It arrives by email.",
+                "Paste the key here.",
+            ]
+            }
+        }
+
+        /// The keys that matter in a region, in the order to ask for them.
+        public static func kinds(for region: Region) -> [KeyKind] {
+            allCases.filter { kind in kind.systems.contains { region.systems.contains($0) } }
+        }
     }
 
     public static func keyKind(for system: TransitSystem) -> KeyKind? {

@@ -135,7 +135,7 @@ final class AppModel {
         tracker.trailDuration = max(10, self.settings.trailMinutes * 60)
         updatePowerMode()
         guard startServices else { return }
-        apiKeys = KeyStore.load().filter { $0.key.userSupplied }
+        apiKeys = KeyStore.load()
         loadData()
         location.onUpdate = { [weak self] coord in self?.systemLocationUpdated(coord) }
         location.onFailure = { [weak self] message in
@@ -662,7 +662,7 @@ final class AppModel {
         for system in region.systems {
             var f = feeds[system] ?? FeedStatus()
             f.sourceName = sources[system]?.name
-            f.needsKey = sources[system] == nil && LiveFeeds.keyKind(for: system)?.userSupplied == true
+            f.needsKey = sources[system] == nil && LiveFeeds.keyKind(for: system) != nil
             if !settings.systems.contains(system) {
                 f.mode = .off
             } else {

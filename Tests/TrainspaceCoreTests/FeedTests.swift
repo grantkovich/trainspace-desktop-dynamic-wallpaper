@@ -85,10 +85,24 @@ func fixture(_ name: String) throws -> Data {
 }
 
 @Suite struct KeyPolicyTests {
-    /// WMATA's Transit Data Terms (§5): an app may not require its users to get their own keys.
-    @Test func metrorailNeverAsksForTheUsersOwnKey() {
+    /// Keys are optional and personal: every keyed system still runs on the timetable without
+    /// one, and each key says what it unlocks and where a person gets their own.
+    @Test func everyKeyIsOptionalAndSaysWhereToGetIt() {
         #expect(LiveFeeds.keyKind(for: .metrorail) == .wmata)
-        #expect(!LiveFeeds.KeyKind.wmata.userSupplied)
-        #expect(LiveFeeds.KeyKind.swiftly.userSupplied)
+        #expect(LiveFeeds.keyKind(for: .lightRail) == .swiftly)
+        #expect(LiveFeeds.keyKind(for: .subway) == .swiftly)
+        for kind in LiveFeeds.KeyKind.allCases {
+            #expect(kind.signupURL.scheme == "https")
+            #expect(!kind.steps.isEmpty)
+            #expect(!kind.systems.isEmpty)
+            #expect(kind.systems.allSatisfy { LiveFeeds.keyKind(for: $0) == kind })
+        }
+    }
+
+    @Test func onlyDCBaltimoreUsesKeys() {
+        #expect(LiveFeeds.KeyKind.kinds(for: .dcBaltimore) == [.wmata, .swiftly])
+        for region in Region.all where region.id != Region.dcBaltimore.id {
+            #expect(LiveFeeds.KeyKind.kinds(for: region).isEmpty)
+        }
     }
 }

@@ -456,6 +456,24 @@ enum SettingsRender {
                 try? rep.representation(using: .png, properties: [:])?.write(to: dir.appendingPathComponent(name))
                 window.close()
             }
+            // Both welcome steps, as on first run.
+            for step in WelcomeView.Step.allCases {
+                let host = NSHostingView(rootView: WelcomeView(model: model, initialStep: step)
+                    .environment(\.renderSynchronously, true))
+                let window = NSWindow(contentRect: CGRect(x: -5000, y: -5000, width: 616, height: 720),
+                                      styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
+                window.appearance = NSAppearance(named: appearance)
+                window.contentView = host
+                window.setContentSize(host.fittingSize)
+                window.layoutIfNeeded()
+                RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+                let view = window.contentView!.superview ?? host
+                guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { continue }
+                view.cacheDisplay(in: view.bounds, to: rep)
+                let name = "welcome-\(step.rawValue)-\(appearance == .aqua ? "light" : "dark").png"
+                try? rep.representation(using: .png, properties: [:])?.write(to: dir.appendingPathComponent(name))
+                window.close()
+            }
         }
         print("wrote \(dir.path)")
     }

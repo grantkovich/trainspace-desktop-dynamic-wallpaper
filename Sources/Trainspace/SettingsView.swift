@@ -644,7 +644,6 @@ struct FeedBadge: View {
 
 struct LiveDataSettings: View {
     @Bindable var model: AppModel
-    @State private var swiftly = ""
 
     var body: some View {
         SettingsGroup(title: "Feeds", footer: feedsFooter) {
@@ -661,7 +660,7 @@ struct LiveDataSettings: View {
             }
         }
 
-        if model.region == .dcBaltimore { dcKeys }
+        if !LiveFeeds.KeyKind.kinds(for: model.region).isEmpty { keys }
     }
 
     private var feedsFooter: String {
@@ -669,19 +668,14 @@ struct LiveDataSettings: View {
         case "nyc": "MTA’s subway, LIRR and Metro-North feeds need no key; subway trains are placed from arrival predictions, since the feeds give no positions underground. NJ TRANSIT and PATH run on the timetable: NJ TRANSIT’s feed needs a developer account, and PATH publishes only station arrival times."
         case "phl": "SEPTA’s feeds need no key. PATCO and NJ TRANSIT run on the timetable: PATCO publishes nothing live, and NJ TRANSIT’s feed needs a developer account."
         case "bos": "MBTA’s feeds need no key."
-        default: "Amtrak, MARC and VRE need no key. Metrorail runs on the timetable: WMATA’s terms don’t let apps ask you for your own key. Without a Swiftly key, Light RailLink and Metro SubwayLink run on the timetable too."
+        default: "Amtrak, MARC and VRE need no key. Metrorail, Light RailLink and Metro SubwayLink go live with your own free keys below, and run on the timetable without them."
         }
     }
 
-    @ViewBuilder private var dcKeys: some View {
-        SettingsGroup(title: "Light RailLink and Metro SubwayLink",
-                      footer: "MDOT MTA publishes these through Swiftly. Request a free key from MTA’s developer page. Stored in your keychain.") {
-            KeyField(title: "Swiftly API key", text: $swiftly) { model.setAPIKey(swiftly, for: .swiftly) }
-            Link("MTA developer resources", destination: URL(string: "https://www.mta.maryland.gov/developer-resources")!)
-                .font(.callout)
-        }
-        .onAppear {
-            swiftly = model.apiKeys[.swiftly] ?? ""
+    @ViewBuilder private var keys: some View {
+        SettingsGroup(title: "Your own API keys (optional)",
+                      footer: "Free keys you request yourself. Each one stays in your keychain and only goes to its agency’s feed; Trainspace never shares keys. Without a key, those lines run on the timetable.") {
+            APIKeyList(model: model)
         }
     }
 

@@ -1,15 +1,38 @@
 import SwiftUI
 import TrainspaceCore
 
-/// First run: pick a place while a live preview fills in.
+/// First run: pick a place while a live preview fills in, then (where a region has them) the
+/// optional API keys a person can request for live data.
 struct WelcomeView: View {
     @Bindable var model: AppModel
     @State private var query = ""
+    @State private var step: Step
     @Environment(\.dismiss) private var dismiss
+
+    enum Step: String, CaseIterable { case place, keys }
+
+    init(model: AppModel, initialStep: Step = .place) {
+        self.model = model
+        _step = State(initialValue: initialStep)
+    }
 
     private let previewSize = CGSize(width: 560, height: 330)
 
     var body: some View {
+        Group {
+            switch step {
+            case .place: placeStep
+            case .keys: keysStep
+            }
+        }
+        .padding(28)
+        .frame(width: previewSize.width + 56)
+        .onAppear { model.beginPreview() }
+    }
+
+    private var regionNeedsKeys: Bool { !LiveFeeds.KeyKind.kinds(for: model.region).isEmpty }
+
+    private var placeStep: some View {
         VStack(alignment: .leading, spacing: 22) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("TRAINSPACE")
@@ -62,23 +85,58 @@ struct WelcomeView: View {
             }
 
             HStack {
-                Text("Metrorail and Baltimore’s Light Rail and Subway run on the timetable until you add free API keys in Settings › Live Data.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                if regionNeedsKeys {
+                    Text("Next: optional free keys for live Metrorail and Baltimore’s Light RailLink and Metro SubwayLink.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text("Every live feed here works without an account or key.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
                 Spacer()
                 Button("Set as Wallpaper") {
                     model.completeOnboarding(with: model.settings.location)
-                    dismiss()
+                    if regionNeedsKeys { step = .keys } else { dismiss() }
                 }
                 .keyboardShortcut(.defaultAction)
                 .controlSize(.large)
                 .disabled(model.mapCenter == nil)
             }
         }
-        .padding(28)
-        .frame(width: previewSize.width + 56)
-        .onAppear { model.beginPreview() }
+    }
+
+    /// Optional keys. The wallpaper is already running behind this, on the timetable for
+    /// these lines, so skipping loses nothing but live positions.
+    private var keysStep: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("LIVE DATA")
+                    .font(.system(size: 26, weight: .semibold).width(.expanded))
+                    .tracking(6)
+                Text("Optional. Some railways only share live positions with people who have their own free key.")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text("Without a key, those lines still show, placed by the timetable and drawn hollow. Keys are yours: Trainspace saves them in your keychain, sends each one only to its own feed, and never shares them. You can add or change them later in Settings › Live Data.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 14) { APIKeyList(model: model) }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.background.secondary, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(.separator.opacity(0.6)))
+            HStack {
+                Button("Back") { step = .place }
+                Spacer()
+                Button(model.apiKeys.isEmpty ? "Skip for Now" : "Done") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+                    .controlSize(.large)
+            }
+        }
     }
 
     private var preview: some View {

@@ -30,11 +30,9 @@ on battery.
     no GPS underground), so subway trains are placed along their timetabled trip, shifted by
     how late the predictions say they're running; Metro-North's trains without a position are
     placed the same way.
-  - Light RailLink and Metro SubwayLink go live once you paste a free Swiftly API key
-    (Settings › Live Data).
-  - Metrorail runs on the timetable. WMATA's Transit Data Terms (§5) don't let an app require
-    its users to get their own WMATA keys; live Metrorail would need WMATA's written
-    permission for a relay that serves everyone with one key.
+  - Metrorail, Light RailLink and Metro SubwayLink go live once you paste your own free API
+    keys (the welcome window's second step, or Settings › Live Data). They're optional:
+    without them those lines run on the timetable.
   - NJ TRANSIT (needs a developer account), PATH (publishes only station arrival times) and
     PATCO (publishes nothing live) run on the timetable. So do lines a live feed leaves out:
     SEPTA's feed carries its trolleys but not the L and B, which come from the timetable.
@@ -141,9 +139,11 @@ Settings › Station View. On first launch a welcome window previews Washington.
 
 | System | Key | Where |
 |---|---|---|
+| Metrorail | WMATA API key | [developer.wmata.com](https://developer.wmata.com) (Products › Default Tier) |
 | Light RailLink, Metro SubwayLink | Swiftly API key | [MTA developer resources](https://www.mta.maryland.gov/developer-resources) → request a Swiftly key |
 
-Keys are stored in your login keychain. Everything else that's live needs none.
+Each person requests their own keys; Trainspace never ships or shares one. Keys are stored in
+your login keychain and sent only to their own feed. Everything else that's live needs none.
 
 ### Distributing
 
