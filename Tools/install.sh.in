@@ -1,7 +1,7 @@
 #!/bin/sh
 # Installs @APP@ @VERSION@ into /Applications (or ~/Applications if you can't write there).
 #
-#   curl -fsSL @DOWNLOAD_URL@/install.sh | sh
+#   curl -fsSL @INSTALLER_URL@ | sh
 #
 # What it does, in order: downloads @APP@-@VERSION@.zip and SHA256SUMS from
 # @DOWNLOAD_URL@, checks the zip against the checksum, quits a running copy of @APP@

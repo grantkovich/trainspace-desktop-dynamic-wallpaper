@@ -158,7 +158,7 @@ Because it isn't notarized, a DMG downloaded in a browser needs one approval in 
 Settings › Privacy & Security › Open Anyway. The installer downloads with curl, so it doesn't:
 
 ```sh
-curl -fsSL https://downloads.grantkovich.com/trainspace/install.sh | sh
+curl -fsSL https://github.com/grantkovich/trainspace-desktop-dynamic-wallpaper/releases/latest/download/install.sh | sh
 ```
 
 Run `make data` before a release so the bundled timetables are current. If a timetable runs
@@ -225,3 +225,8 @@ Tools/                   data builders (GTFS + Natural Earth → Resources/rail-
 - **Base map:** [Natural Earth](https://www.naturalearthdata.com) 10m (public domain), clipped to each region.
 
 Only API keys go to the feed providers. Your location isn't sent to any train feed; Apple receives it to look up place names and, with the Apple Map style, to load the map.
+
+## License
+
+MIT, see [LICENSE](LICENSE). Data and bundled typefaces keep their own licenses (see the
+Data section and the app's About panel).

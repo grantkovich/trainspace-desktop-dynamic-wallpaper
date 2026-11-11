@@ -45,11 +45,11 @@ security add-generic-password -U -a "$USER" -s "wallpaper-signing keychain" -w "
    This writes `build/Trainspace-<version>.zip`, `.dmg`, `SHA256SUMS` and `install.sh`, and prints
    the designated requirement. It must read
    `identifier "com.grantkovich.trainspace" and certificate leaf = H"8e62f96f…"`.
-5. Upload the zip, DMG, `SHA256SUMS` and `install.sh` to `DOWNLOAD_URL`
-   (default `https://downloads.grantkovich.com/trainspace`).
-6. Update the download page on grantkovich.com: version, date, checksums, and the installer
-   line `curl -fsSL https://downloads.grantkovich.com/trainspace/install.sh | sh`.
-7. Tag the commit: `git tag v<version> && git push --tags`.
+5. `make publish` creates GitHub release `v<version>` on this commit with the zip, DMG,
+   `SHA256SUMS` and `install.sh` (the repo must be public for anonymous downloads).
+6. Update the download page on grantkovich.com/trainspace/: version, date, checksums, the DMG link
+   and the installer line, which always fetches the newest release:
+   `curl -fsSL https://github.com/grantkovich/trainspace-desktop-dynamic-wallpaper/releases/latest/download/install.sh | sh`.
 
 ## Before the first public release
 
