@@ -102,9 +102,7 @@ public struct WallpaperSettings: Codable, Hashable, Sendable {
     public var stationZoomMiles: Double = 1.2 {
         didSet { stationZoomMiles = min(Self.stationZoomRange.upperBound, max(Self.stationZoomRange.lowerBound, stationZoomMiles)) }
     }
-    /// Map labels and station signs in each agency's own typeface.
-    public var agencyTypography = true
-    /// Name every station with a small sign in its railway's style, as on the platform.
+    /// Name every station with a small sign beside it.
     public var stationSigns = true
     /// Live Amtrak positions from the feed behind Amtrak's Track-a-Train map. Amtrak has no
     /// official public API, so this is off unless the user turns it on; without it Amtrak
@@ -131,7 +129,7 @@ public struct WallpaperSettings: Codable, Hashable, Sendable {
              showRangeRings, showDotGrid, tintAppleMap, systems, showScheduled, labelMode, colorMode, trailMinutes, glyph,
              pulse, brightness, appearance, dynamicSource, infoEnabled, infoCorner, infoShowClock, infoShowCoordinates,
              infoShowCount, infoShowNearest, infoShowLegend, pollInterval, batterySaver, fpsCap, displays,
-             syncSystemWallpaper, viewMode, stationKey, stationZoomMiles, agencyTypography, stationSigns, liveAmtrak, hasCompletedOnboarding,
+             syncSystemWallpaper, viewMode, stationKey, stationZoomMiles, stationSigns, liveAmtrak, hasCompletedOnboarding,
              schemaVersion
     }
 
@@ -179,7 +177,6 @@ public struct WallpaperSettings: Codable, Hashable, Sendable {
         viewMode = v(.viewMode, d.viewMode)
         stationKey = v(.stationKey, d.stationKey)
         stationZoomMiles = v(.stationZoomMiles, d.stationZoomMiles)
-        agencyTypography = v(.agencyTypography, d.agencyTypography)
         stationSigns = v(.stationSigns, d.stationSigns)
         liveAmtrak = v(.liveAmtrak, d.liveAmtrak)
         hasCompletedOnboarding = v(.hasCompletedOnboarding, d.hasCompletedOnboarding)
@@ -230,7 +227,6 @@ public struct WallpaperSettings: Codable, Hashable, Sendable {
         try c.encode(viewMode, forKey: .viewMode)
         try c.encode(stationKey, forKey: .stationKey)
         try c.encode(stationZoomMiles, forKey: .stationZoomMiles)
-        try c.encode(agencyTypography, forKey: .agencyTypography)
         try c.encode(stationSigns, forKey: .stationSigns)
         try c.encode(liveAmtrak, forKey: .liveAmtrak)
 

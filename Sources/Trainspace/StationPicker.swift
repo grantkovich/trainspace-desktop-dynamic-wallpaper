@@ -101,8 +101,7 @@ struct StationViewSettings: View {
         }
 
         SettingsGroup(title: "Signage",
-                      footer: "Union Station and Penn Station get a split-flap departures board. Metrorail stations get the orange LED platform sign; MARC and VRE stations, the amber one; Light RailLink and Metro SubwayLink, the red one. Times come from the timetable, corrected by live data where the feeds have it.") {
-            Toggle("Agency typefaces on the map and signs", isOn: $model.settings.agencyTypography)
+                      footer: "The biggest stations get a split-flap departures board; commuter stations, an amber board of trains and times; metro and light rail stations, an amber countdown with each line’s colour and name. Times come from the timetable, corrected by live data where the feeds have it.") {
             SettingsRow(title: "Boards sit in the") {
                 Picker("Corner", selection: $model.settings.infoCorner) {
                     Text("Top left").tag(Corner.topLeft)

@@ -489,7 +489,7 @@ struct MapSettings: View {
             Toggle("Stations", isOn: $model.settings.showStations)
             Toggle("Station names", isOn: $model.settings.showStationNames)
                 .disabled(!model.settings.showStations)
-            Toggle("Every station's name on its own sign, in its railway's style", isOn: $model.settings.stationSigns)
+            Toggle("Every station's name on a small sign, with a dot for each line", isOn: $model.settings.stationSigns)
                 .disabled(!model.settings.showStations || !model.settings.showStationNames)
             if model.settings.mapStyle == .schematic {
                 Toggle("Major roads", isOn: $model.settings.showRoads)

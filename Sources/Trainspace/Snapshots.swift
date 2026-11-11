@@ -179,10 +179,10 @@ enum Snapshots {
         let stations = names.compactMap { n in rail.stations.firstIndex { $0.name == n } }
         let view = HStack(alignment: .top, spacing: 40) {
             VStack(alignment: .leading, spacing: 14) {
-                ForEach(stations, id: \.self) { AgencySign(station: $0, rail: rail, fontSize: 26) }
+                ForEach(stations, id: \.self) { StationSign(station: $0, rail: rail, fontSize: 26) }
             }
             VStack(alignment: .leading, spacing: 10) {
-                ForEach(stations, id: \.self) { AgencySign(station: $0, rail: rail, fontSize: 10) }
+                ForEach(stations, id: \.self) { StationSign(station: $0, rail: rail, fontSize: 10) }
             }
         }
         .padding(30)

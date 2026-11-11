@@ -163,10 +163,9 @@ struct TrainRenderer {
         let primary = t.id == nearestID ? palette.textPrimary : RGBA.mix(palette.textSecondary, palette.textPrimary, 0.35)
         let secondary: String? = settings.labelMode == .trainDestination ? t.report.headsign?.uppercased() : nil
         let name = labelFor(t.report), tertiary = palette.textTertiary, palette = palette
-        let font = settings.agencyTypography ? Signage.fontName(t.report.system) : nil
         return MainActor.assumeIsolated {
             LabelImageCache.shared.label(name, secondary, primaryColor: primary, secondaryColor: tertiary, palette: palette,
-                                         fontName: font)
+                                         fontName: nil)
         }
     }
 

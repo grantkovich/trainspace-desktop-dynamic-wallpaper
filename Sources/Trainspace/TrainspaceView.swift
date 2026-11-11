@@ -122,7 +122,7 @@ struct BaseMapLayer: View {
         case .schematic:
             SchematicLayer(geo: model.geo, rail: model.rail, projection: projection, palette: palette,
                            options: network.options, drawBaseMap: true, dotGrid: s.showDotGrid, trackColor: network.trackColor,
-                           shared: shared, rings: rings, agencyType: s.agencyTypography, lights: lights)
+                           shared: shared, rings: rings, lights: lights)
                 .onDisappear { shared.rects = [] }
         case .appleMap:
             ZStack {
@@ -133,12 +133,12 @@ struct BaseMapLayer: View {
                 }
                 SchematicLayer(geo: nil, rail: model.rail, projection: projection, palette: palette,
                                options: network.options, drawBaseMap: false, dotGrid: false, trackColor: network.trackColor,
-                               shared: shared, rings: rings, agencyType: s.agencyTypography, lights: lights)
+                               shared: shared, rings: rings, lights: lights)
             }
         case .pureField:
             SchematicLayer(geo: nil, rail: model.rail, projection: projection, palette: palette,
                            options: network.options, drawBaseMap: false, dotGrid: s.showDotGrid, trackColor: network.trackColor,
-                           shared: shared, rings: rings, fieldFill: true, agencyType: s.agencyTypography, lights: lights)
+                           shared: shared, rings: rings, fieldFill: true, lights: lights)
         }
     }
 }
@@ -217,8 +217,6 @@ struct SchematicLayer: View {
     var rings: RingsLayer?
     /// Pure Field: a flat ground fill instead of land and water.
     var fieldFill = false
-    /// Station names in each agency's typeface.
-    var agencyType = true
     /// Station Lights style: stations as LED pills instead of dots.
     var lights: StationLights? = nil
 
@@ -337,7 +335,7 @@ struct SchematicLayer: View {
         }
         for label in p.stationLabels where label.signFontSize == 0 {
             let text = Text(label.name.uppercased())
-                .font(agencyType ? Signage.font(label.system, size: label.isMajor ? 9.5 : 8.5) : Typeface.station(major: label.isMajor))
+                .font(Typeface.station(major: label.isMajor))
                 .tracking(0.6)
                 .foregroundColor((label.isMajor ? palette.stationLabel : palette.stationLabel.with(alpha: 0.8)).color)
             // Anchor to the station side, so a name that runs longer than estimated grows away from its dot.
@@ -349,7 +347,7 @@ struct SchematicLayer: View {
         }
     }
 
-    /// A station's name sign, drawn to its railway's standards, with a leader line when it sits away from the station.
+    /// A station's name sign, with a leader line when it sits away from the station.
     private func drawSign(_ label: SchematicPaths.StationLabel, rail: RailNetwork, in ctx: inout GraphicsContext) {
         let rect = label.rect
         if let from = label.leaderFrom {

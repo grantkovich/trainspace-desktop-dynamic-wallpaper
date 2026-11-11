@@ -75,33 +75,26 @@ import Testing
         #expect(StationSigns.displayName(station: union, rail: rail) == "Union Station")
     }
 
-    @Test func signLeadsFollowEachStandard() {
+    /// One Trainspace style for every railway: no agency's sign design, typeface or route symbols.
+    @Test func everyRailwayGetsThePlainSign() {
         let m = StationSigns.Metrics(fontSize: 10)
-        #expect(StationSigns.lead(.metrorail, m) == 0)     // plain Metro Brown band
-        #expect(StationSigns.lead(.amtrak, m) == m.curve)  // amtrak.com blue curve
-        #expect(StationSigns.lead(.marc, m) == m.slash)    // mta.maryland.gov gold slash
-        #expect(StationSigns.lead(.lightRail, m) == m.slash)
-        #expect(StationSigns.lead(.vre, m) == m.stripe)    // vre.org red stripe
+        for system in TransitSystem.allCases {
+            let style = StationSigns.style(system)
+            #expect(style.font == StationSigns.font)
+            #expect(style.field == StationSigns.field)
+            #expect(StationSigns.lead(system, m) == m.stripe)
+            #expect(style.marks == (system.isMainline ? .perSystem : .perLine))
+        }
+        #expect(StationSigns.font == "AvenirNext-DemiBold")
     }
 
-    @Test func signsUseEachRailwaysLettering() {
-        // The typefaces each agency's website uses.
-        #expect(StationSigns.fontName(.metrorail).hasPrefix("HelveticaNeue"))
-        #expect(StationSigns.fontName(.amtrak).hasPrefix("OpenSans"))
-        #expect(StationSigns.fontName(.marc).hasPrefix("Roboto"))
-        #expect(StationSigns.fontName(.vre).contains("Montserrat"))
-        // Wider names make wider signs; a Metrorail sign has no stripe.
+    @Test func signsGrowWithTheirName() {
         let rail = lNetwork()
         let short = StationSigns.size(name: "Takoma", system: .metrorail, marks: [0], rail: rail, fontSize: 10)
         let long = StationSigns.size(name: "Takoma Park Station Extra", system: .metrorail, marks: [0], rail: rail, fontSize: 10)
         #expect(long.width > short.width + 40)
-        #expect(StationSigns.size(name: "Takoma", system: .marc, marks: [0], rail: rail, fontSize: 10).width > short.width)
-        // New York, Philadelphia and Boston letter their signs as their websites do.
-        #expect(StationSigns.fontName(.nycSubway).hasPrefix("HelveticaNeue"))
-        #expect(StationSigns.fontName(.njtRail).hasPrefix("PublicSans"))
-        #expect(StationSigns.fontName(.septaMetro).hasPrefix("Roboto"))
-        #expect(StationSigns.fontName(.patco).hasPrefix("Verdana"))
-        #expect(StationSigns.style(.mbtaSubway).lead == .band)
-        #expect(StationSigns.style(.nycSubway).field == 0x000000)
+        // Same lettering everywhere, so the same name makes the same sign on any railway.
+        #expect(StationSigns.size(name: "Takoma", system: .marc, marks: [0], rail: rail, fontSize: 10).width == short.width)
+        #expect(StationSigns.size(name: "Takoma", system: .metrorail, marks: [], rail: rail, fontSize: 10).width < short.width)
     }
 }

@@ -51,7 +51,6 @@ app: build
 	lipo -create $(foreach a,$(ARCHS),"$(call bin_path,$(a))/$(APP_NAME)") -output $(APP)/Contents/MacOS/$(APP_NAME)
 	sed -e 's/$$(VERSION)/$(VERSION)/g' -e 's/$$(BUILD)/$(BUILD)/g' -e 's/$$(BUNDLE_ID)/$(BUNDLE_ID)/g' Resources/Info.plist > $(APP)/Contents/Info.plist
 	cp Resources/geodata-*.bin Resources/rail-*.bin $(APP)/Contents/Resources/
-	mkdir -p $(APP)/Contents/Resources/Fonts && cp Resources/Fonts/* $(APP)/Contents/Resources/Fonts/
 	cp Resources/AppIcon.icns $(APP)/Contents/Resources/ 2>/dev/null || true
 	codesign --force --options runtime $(if $(NOTARY_PROFILE),--timestamp,--timestamp=none) \
 	  --entitlements $(ENTITLEMENTS) $(if $(SIGN_KEYCHAIN),--keychain "$(SIGN_KEYCHAIN)") --sign "$(SIGN_ID)" $(APP)

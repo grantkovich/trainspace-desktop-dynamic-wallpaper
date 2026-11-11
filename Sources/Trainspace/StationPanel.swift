@@ -1,26 +1,21 @@
 import SwiftUI
 import TrainspaceCore
 
-/// The kinds of departure sign a station can have, after the real ones on its platforms.
+/// The kinds of departure board a station can have, in Trainspace's own style.
 enum BoardStyle: Hashable {
-    /// The great hall: a split-flap board (Union Station, Penn Station, Grand Central, 30th Street,
-    /// South Station).
+    /// Big stations: a split-flap departures board (Union Station, Penn Station, Grand Central,
+    /// 30th Street, South Station).
     case splitFlap
-    /// Metrorail's platform signs: LN CAR DEST MIN in orange LEDs.
-    case metrorail
-    /// MDOT MTA's Light RailLink and Metro SubwayLink signs.
-    case mta(TransitSystem)
-    /// Commuter-rail platform signs (MARC, VRE, LIRR, Metro-North, NJ TRANSIT, SEPTA, MBTA, Amtrak).
+    /// Commuter and intercity trains: an amber LED board listing train, destination and time.
     case commuter
-    /// A metro platform's countdown sign: route mark, destination, minutes (NYCT, PATH, SEPTA Metro,
-    /// PATCO, MBTA, NJ TRANSIT light rail).
+    /// Metro and light rail: an amber LED countdown with each line's dot and name.
     case countdown(TransitSystem)
 
-    /// Platform signs count down to the next train; boards list the timetable.
+    /// Countdown signs count down to the next train; boards list the timetable.
     var countsDown: Bool {
         switch self {
         case .splitFlap, .commuter: false
-        case .metrorail, .mta, .countdown: true
+        case .countdown: true
         }
     }
 }
@@ -60,92 +55,19 @@ enum StationBoards {
             }
         }
         for system in systems.sorted() where !system.isMainline {
-            switch system {
-            case .metrorail:
-                out.append(BoardSpec(style: .metrorail, systems: [.metrorail], rows: 4, caption: "Metrorail"))
-            case .lightRail, .subway:
-                out.append(BoardSpec(style: .mta(system), systems: [system], rows: 3, caption: system.name))
-            default:
-                out.append(BoardSpec(style: .countdown(system), systems: [system], rows: system == .nycSubway ? 5 : 4,
-                                     caption: system.name))
-            }
+            out.append(BoardSpec(style: .countdown(system), systems: [system], rows: system == .nycSubway ? 5 : 4,
+                                 caption: system.name))
         }
         return out
     }
 }
 
-/// How each metro's countdown sign looks: its LED colour, and how it marks the route.
-struct CountdownLook {
-    enum Mark { case none, bullet, dot, badge }
-    var led: RGBA
-    var mark: Mark
-    /// "ARR"/"BRD" (MBTA, like Metrorail) or "min" counts all the way down (NYCT).
-    var arrBrd: Bool
-    var header: String
+// MARK: - Board colours and type
 
-    static func of(_ system: TransitSystem) -> CountdownLook {
-        switch system {
-        // NYCT's platform countdown clocks: route bullet, destination, minutes, in red-orange LEDs.
-        case .nycSubway, .statenIsland: CountdownLook(led: RGBA(hex: 0xFF5F1A), mark: .bullet, arrBrd: false, header: "")
-        // PATH's platform signs: a dot in the route's map colour, then the destination.
-        case .path: CountdownLook(led: RGBA(hex: 0xFFB000), mark: .dot, arrBrd: false, header: "TRAIN TO")
-        // SEPTA Metro's new wayfinding gives every line a coloured route code.
-        case .septaMetro: CountdownLook(led: RGBA(hex: 0xFFAE1F), mark: .badge, arrBrd: false, header: "")
-        case .patco: CountdownLook(led: RGBA(hex: 0xFF3B26), mark: .none, arrBrd: false, header: "NEXT TRAIN TO")
-        // MBTA's platform signs count down, then ARR and BRD.
-        case .mbtaSubway: CountdownLook(led: RGBA(hex: 0xFFB21A), mark: .bullet, arrBrd: true, header: "")
-        default: CountdownLook(led: RGBA(hex: 0xFFAE1F), mark: .none, arrBrd: false, header: "NEXT TRAIN TO")
-        }
-    }
-}
-
-// MARK: - Signage colours and type
-
-/// Each agency's own colours and lettering, for signs and labels: the typefaces their websites
-/// use (Helvetica, Roboto, Montserrat, Open Sans; the last three bundled).
+/// The boards' shared colours and lettering.
 enum Signage {
-    static let metroOrange = RGBA(hex: 0xFF7417)      // Metrorail platform LEDs
-    static let commuterAmber = RGBA(hex: 0xFFAE1F)    // MARC / VRE platform signs
-    static let mtaRed = RGBA(hex: 0xFF3D22)           // Light RailLink and SubwayLink LEDs
-    static let bronze = RGBA(hex: 0x2E2621)           // Metrorail pylons and station-name bands
-    static let navy = RGBA(hex: 0x14202C)
-
-    /// Official line colours (not the map palette, which is tuned for the map surface).
-    static func official(_ line: RailLine) -> RGBA { SignRenderer.lineColor(line) }
-
-    /// Each agency's typeface (see `StationSigns`), regular or bold weight.
-    static func fontName(_ system: TransitSystem, bold: Bool = true) -> String {
-        let pairs: [String: (bold: String, regular: String)] = [
-            "HelveticaNeue-Medium": ("HelveticaNeue-Bold", "HelveticaNeue-Medium"),
-            "HelveticaNeue-Bold": ("HelveticaNeue-Bold", "HelveticaNeue-Medium"),
-            "Helvetica-Bold": ("Helvetica-Bold", "Helvetica"),
-            "OpenSans-Bold": ("OpenSans-Bold", "OpenSans-SemiBold"),
-            "Roboto-Bold": ("Roboto-Bold", "Roboto-Medium"),
-            "MontserratThin-SemiBold": ("MontserratThin-Bold", "MontserratThin-SemiBold"),
-            "PublicSans-Bold": ("PublicSans-Bold", "PublicSans-SemiBold"),
-            "Verdana-Bold": ("Verdana-Bold", "Verdana"),
-        ]
-        let name = StationSigns.fontName(system)
-        guard let p = pairs[name] else { return name }
-        return bold ? p.bold : p.regular
-    }
-
-    static func font(_ system: TransitSystem, size: CGFloat, bold: Bool = true) -> Font {
-        .custom(fontName(system, bold: bold), size: size)
-    }
-
-    /// Metrorail's platform signs abbreviate destinations to fit; these are the familiar forms.
-    static func metroDestination(_ name: String) -> String {
-        let table: [String: String] = [
-            "Shady Grove": "Shady Grv", "Grosvenor": "Grsvnor", "Silver Spring": "Silvr Spg",
-            "New Carrollton": "NewCrltn", "Downtown Largo": "Largo", "Franconia-Springfield": "Frnconia",
-            "Huntington": "Hntingtn", "Mt Vernon Sq": "Mt Vern Sq", "Branch Av": "Brnch Av", "Branch Ave": "Brnch Av",
-            "Fort Totten": "Ft Totten", "Wiehle-Reston East": "Wiehle", "West Falls Church": "W Falls Ch",
-            "Stadium-Armory": "Stadium", "NoMa-Gallaudet U": "NoMa", "Potomac Yard": "Potomac Yd",
-            "Ballston-MU": "Ballston", "Navy Yard-Ballpark": "Navy Yard", "Columbia Heights": "Columbia Hts",
-        ]
-        return table[name] ?? String(name.prefix(11))
-    }
+    /// The amber of every LED board.
+    static let amber = RGBA(hex: 0xFFAE1F)
 
     static func time(_ d: Date) -> String {
         let f = DateFormatter()
@@ -183,15 +105,14 @@ struct StationPanel: View {
     static func boardSize(_ spec: BoardSpec) -> CGSize {
         switch spec.style {
         case .splitFlap: SplitFlapBoard.size(widths: splitFlapWidths, rows: spec.rows)
-        case .metrorail: LEDSign.size(columns: 22, rows: spec.rows + 1, pitch: 3.0)
-        case .mta: LEDSign.size(columns: 24, rows: spec.rows + 1, pitch: 2.8)
         case .commuter: LEDSign.size(columns: 37, rows: spec.rows + 1, pitch: 2.6)
-        case .countdown(let system):
-            LEDSign.size(columns: 26, rows: spec.rows + (CountdownLook.of(system).header.isEmpty ? 0 : 1), pitch: 2.8)
+        case .countdown: LEDSign.size(columns: Self.countdownColumns, rows: spec.rows + 1, pitch: 2.8)
         }
     }
 
     static let splitFlapWidths = [5, 6, 4, 16, 10]
+    /// Countdown columns: dot, gap, line, gap, destination, minutes.
+    static let countdownColumns = 30
 
     /// Sizes the panel to the display: up to ~60% of its height on big screens, shrunk to fit on
     /// small ones, and never wider than ~55% of the display.
@@ -218,7 +139,7 @@ struct StationPanel: View {
     var body: some View {
         if let station = model.selectedStation, let rail = model.rail, rail.stations.indices.contains(station) {
             VStack(alignment: .leading, spacing: Self.gap) {
-                AgencySign(station: station, rail: rail, fontSize: 30)
+                StationSign(station: station, rail: rail, fontSize: 30)
                 ForEach(model.stationBoards) { board in
                     VStack(alignment: .leading, spacing: 6) {
                         // The split-flap board letters its own title.
@@ -249,24 +170,6 @@ struct StationPanel: View {
                            headers: zip(["TIME", "TRAIN", "NO.", "DESTINATION", "REMARKS"], Self.splitFlapWidths).map { ($0, $1) },
                            rows: (0..<board.spec.rows).map { i in deps[safe: i].map { splitFlapRow($0) } ?? blankRow },
                            memory: flaps, now: now)
-        case .metrorail:
-            let rows: [[LEDSign.Field]] = [[.init(text: "LN", width: 3), .init(text: "CAR", width: 4), .init(text: "DEST", width: 11),
-                                           .init(text: "MIN", width: 4, alignRight: true)]]
-                + (0..<board.spec.rows).map { i in
-                    guard let d = deps[safe: i] else { return [] }
-                    return [.init(text: rail.lines[d.line].shortName, width: 3), .init(text: "-", width: 4),
-                            .init(text: Signage.metroDestination(d.destination), width: 11),
-                            .init(text: metroMinutes(d), width: 4, alignRight: true)]
-                }
-            LEDSign(rows: rows, color: Signage.metroOrange, pitch: 3.0)
-        case .mta(let system):
-            let rows: [[LEDSign.Field]] = [[.init(text: system == .lightRail ? "LIGHT RAIL TO" : "SUBWAY TO", width: 18),
-                                           .init(text: "MIN", width: 6, alignRight: true)]]
-                + (0..<board.spec.rows).map { i in
-                    guard let d = deps[safe: i] else { return [] }
-                    return [.init(text: d.destination.uppercased(), width: 18), .init(text: mtaMinutes(d), width: 6, alignRight: true)]
-                }
-            LEDSign(rows: rows, color: Signage.mtaRed, pitch: 2.8)
         case .commuter:
             let rows: [[LEDSign.Field]] = [[.init(text: "TRAIN", width: 10), .init(text: "TO", width: 16),
                                            .init(text: "DEPART", width: 6, alignRight: true), .init(text: "", width: 1),
@@ -279,39 +182,30 @@ struct StationPanel: View {
                             .init(text: Signage.time(d.scheduled), width: 6, alignRight: true), .init(text: "", width: 1),
                             .init(text: remark, width: 4, color: color)]
                 }
-            LEDSign(rows: rows, color: Signage.commuterAmber, pitch: 2.6)
-        case .countdown(let system):
-            let look = CountdownLook.of(system)
-            let header: [[LEDSign.Field]] = look.header.isEmpty ? [] : [[.init(text: look.header, width: 20),
-                                                                         .init(text: "MIN", width: 6, alignRight: true)]]
-            let markWidth = look.mark == .none ? 0 : look.mark == .badge ? 3 : 2
-            let destWidth = 26 - 6 - (markWidth > 0 ? markWidth + 1 : 0)
+            LEDSign(rows: rows, color: Signage.amber, pitch: 2.6)
+        case .countdown:
+            let destWidth = Self.countdownColumns - 2 - 1 - 3 - 1 - 6
+            let header: [[LEDSign.Field]] = [[.init(text: "", width: 3), .init(text: "LN", width: 4),
+                                              .init(text: "TO", width: destWidth), .init(text: "MIN", width: 6, alignRight: true)]]
             let rows: [[LEDSign.Field]] = header + (0..<board.spec.rows).map { i in
                 guard let d = deps[safe: i] else { return [] }
                 let line = rail.lines[d.line]
-                var mark = LEDSign.Field(text: "", width: markWidth)
-                switch look.mark {
-                case .none: break
-                case .dot: mark.badge = .init(color: SignRenderer.lineColor(line), round: true)
-                case .bullet, .badge:
-                    // The route's own mark: its letter on its colour, as on the station signs.
-                    if let text = StationSigns.markText(line) {
-                        mark.text = text
-                        mark.color = SignRenderer.lineInk(line)
-                        mark.badge = .init(color: SignRenderer.lineColor(line), round: look.mark == .bullet)
-                    } else {
-                        mark.badge = .init(color: SignRenderer.lineColor(line), round: true)
-                    }
-                }
-                return (markWidth > 0 ? [mark, .init(text: "", width: 1)] : [])
-                    + [.init(text: countdownDestination(d, width: destWidth), width: destWidth),
-                       .init(text: countdownMinutes(d, look), width: 6, alignRight: true)]
+                var dot = LEDSign.Field(text: "", width: 2)
+                dot.badge = .init(color: SignRenderer.lineColor(line), round: true)
+                return [dot, .init(text: "", width: 1), .init(text: Self.lineName(line), width: 3), .init(text: "", width: 1),
+                        .init(text: countdownDestination(d, width: destWidth), width: destWidth),
+                        .init(text: countdownMinutes(d), width: 6, alignRight: true)]
             }
-            LEDSign(rows: rows, color: look.led, pitch: 2.8, minColumns: 26)
+            LEDSign(rows: rows, color: Signage.amber, pitch: 2.8, minColumns: Self.countdownColumns)
         }
     }
 
-    /// Long names lose what follows the hyphen, as NYCT's clocks do ("Crown Hts", not "Crown Hts-Utica A").
+    /// The line's short name as plain LED text ("RD", "A", "L1"); blank when it has none.
+    static func lineName(_ line: RailLine) -> String {
+        String(line.shortName.uppercased().prefix(3))
+    }
+
+    /// Long names lose what follows the hyphen ("Crown Hts", not "Crown Hts-Utica A").
     private func countdownDestination(_ d: Departure, width: Int) -> String {
         let name = d.destination
         guard name.count > width, let dash = name.firstIndex(of: "-"), name.distance(from: name.startIndex, to: dash) >= 4 else {
@@ -320,16 +214,10 @@ struct StationPanel: View {
         return String(name[..<dash])
     }
 
-    private func countdownMinutes(_ d: Departure, _ look: CountdownLook) -> String {
+    private func countdownMinutes(_ d: Departure) -> String {
         if d.status == .cancelled { return "---" }
         let m = minutesAway(d)
-        if look.arrBrd {
-            if m < 0.5 { return "BRD" }
-            if m < 1.5 { return "ARR" }
-        } else if m < 0.5 {
-            return "0 min"
-        }
-        return "\(Int(m.rounded(.down))) min"
+        return m < 1 ? "DUE" : "\(Int(m.rounded(.down))) MIN"
     }
 
     private var blankRow: [SplitFlapBoard.Field] {
@@ -353,21 +241,6 @@ struct StationPanel: View {
     }
 
     private func minutesAway(_ d: Departure) -> Double { d.expected.timeIntervalSince(now) / 60 }
-
-    /// Metrorail signs count down in minutes, then show ARR as the train pulls in and BRD while it boards.
-    private func metroMinutes(_ d: Departure) -> String {
-        if d.status == .cancelled { return "---" }
-        let m = minutesAway(d)
-        if m < 0.5 { return "BRD" }
-        if m < 1.5 { return "ARR" }
-        return "\(Int(m.rounded(.down)))"
-    }
-
-    private func mtaMinutes(_ d: Departure) -> String {
-        if d.status == .cancelled { return "CANCEL" }
-        let m = minutesAway(d)
-        return m < 1 ? "DUE" : "\(Int(m.rounded(.down))) MIN"
-    }
 
     private func shortRemark(_ d: Departure) -> (String, RGBA?) {
         switch d.status {

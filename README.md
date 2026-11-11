@@ -40,54 +40,29 @@ on battery.
   - Until then, or whenever a feed fails, those trains are placed where the bundled timetable
     says they should be, drawn hollow.
 - **Station view:** pick any station and the wallpaper becomes its departures, over a
-  close-up map with the station centered beside the boards. Each board is lettered like the
-  station's own signs:
-  - **Great halls** (Washington Union Station, Baltimore Penn Station, New York Penn Station,
+  close-up map with the station centered beside the boards:
+  - **Big stations** (Washington Union Station, Baltimore Penn Station, New York Penn Station,
     Grand Central, Philadelphia's 30th Street, Boston South Station): a split-flap departures
     board for the commuter and intercity trains. Flaps roll through the alphabet when a row
-    changes. Remarks ("ON TIME", "LATE 12 MIN", "CANCELLED") come from Amtrak's feed and each
-    railway's trip updates.
-  - **Metrorail:** the orange LED platform sign, `LN CAR DEST MIN`, counting down to `ARR` and
-    `BRD`, with WMATA's abbreviated destinations ("Shady Grv", "NewCrltn").
-  - **Commuter rail stations** (MARC, VRE, LIRR, Metro-North, NJ TRANSIT, SEPTA, MBTA): an
-    amber LED sign with train, destination, time and status.
-  - **Light RailLink and Metro SubwayLink:** a red LED sign with minutes to the next train.
-  - **New York subway:** the platform countdown clock: route bullet, destination, minutes.
-  - **MBTA subway:** amber countdown to `ARR` and `BRD`, Green Line branches by letter.
-  - **SEPTA Metro:** countdown with each line's colored route code (L1, B1, T1…); **PATH** with
-    a dot in each route's color; **PATCO** and NJ TRANSIT light rail in plain LEDs.
-  - A station-name sign on top: Metrorail's bronze band with line dots, or each agency's color
-    stripe and line chips.
+    changes. Remarks ("ON TIME", "LATE 12 MIN", "CANCELLED") come from each railway's trip
+    updates.
+  - **Commuter rail stations** (MARC, VRE, LIRR, Metro-North, NJ TRANSIT, SEPTA, MBTA, Amtrak):
+    an amber LED board with train, destination, time and status.
+  - **Metro and light rail stations:** an amber LED countdown: a dot in the line's color, the
+    line's name ("RD", "A", "L1"), the destination and the minutes, down to `DUE`.
+  - The station's name sign on top.
 
   Departure times come from the bundled timetables; countdown signs order trains by their live
   estimate. Delays come from live data where there is any.
-- **Station signs:** every station is named with its own railway's sign, in the typeface and
-  colors read from that agency's website (stylesheets and computed styles, November 2026):
+- **Station signs:** every station is named on a small sign in Trainspace's own style: white
+  Avenir Next on a dark plate, a stripe in the line's color at the leading edge, and a plain
+  dot for each line (one per railway on commuter and intercity rail). Amtrak stations give the
+  city and state. Signs that can't sit beside their station move out onto a thin leader line.
+  Turn this off in Settings › Map › Details.
 
-  | Railway | Website | Typeface | Sign |
-  |---|---|---|---|
-  | Metrorail | wmata.com | Helvetica (site: Helvetica Now → Helvetica Neue) | brand brown `#3A2C26`, white lettering; rail discs as on wmata.com's station pages, with one-letter codes |
-  | MARC, Light RailLink, Metro SubwayLink | mta.maryland.gov | Roboto (bundled) | MTA red `#A5272D` with the gold `#FFCA40` slash from the site header |
-  | VRE | vre.org | Montserrat (bundled) | navy `#002B40` with the logo red `#E0393E` stripe |
-  | Amtrak | amtrak.com | Open Sans (bundled) | Silver field with the blue `#00537E` curve and "City, ST", as in Amtrak's signage manual |
-  | NYC Subway, Staten Island Railway | mta.info | Helvetica | white on black with the white rule along the top and a route bullet per service, after NYCTA's Graphics Standards Manual; black letters on the yellow N Q R W |
-  | LIRR, Metro-North | mta.info | Helvetica | MTA dark blue `#002D72` with the branch color at the leading edge |
-  | NJ TRANSIT | njtransit.com | Public Sans (bundled) | navy `#1A2B57` with blue `#0474C8`/`#004F99` stripes |
-  | PATH | panynj.gov | Helvetica | PATH blue `#0047BB`, a disc per route in its map color |
-  | SEPTA Regional Rail | septa.org | Roboto (bundled) | navy `#103270` with the blue `#1F4FA3` stripe |
-  | SEPTA Metro | septa.org | Roboto (bundled) | ink `#1A1818` with each line's route code (L1 blue, B1 orange, T green, G yellow, D pink, M purple), from SEPTA Metro's 2025 wayfinding |
-  | PATCO | ridepatco.org | Verdana Bold | grey `#404040` with the red `#D11241` stripe |
-  | MBTA | mbta.com | Helvetica Neue Bold | ink `#1C1E23` with a band in each line's color along the bottom, after the MBTA's sign standards; Green Line branches by letter |
-
-  Each sign ends with a disc for every service at the station. Line colors are WMATA's disc
-  colors and the other agencies' GTFS colors. Roboto, Montserrat, Open Sans and Public Sans are
-  open-licensed and bundled in `Resources/Fonts`; WMATA's Helvetica Now is licensed, so macOS's Helvetica Neue
-  stands in. No logos. Signs that can't sit beside their station move out onto a thin leader
-  line. Turn this off in Settings › Map › Details.
-- **Agency typefaces:** train labels on the map and the station-view signs use each agency's
-  typeface (above).
-  The LED signs are drawn dot by dot from an original 5×8 dot-matrix face. No agency logos
-  are used.
+  The signs and boards are deliberately generic: no agency's sign design, typeface, route
+  bullets or logos are copied. Line colors come from each agency's GTFS. The LED boards are
+  drawn dot by dot from an original 5×8 dot-matrix face.
 - **Three map styles:**
   - **Schematic:** land, water, roads and the rail network from bundled data; works offline.
   - **Apple Map:** muted, desaturated MapKit with the network on top, aligned to the street.
@@ -228,5 +203,5 @@ Only API keys go to the feed providers. Your location isn't sent to any train fe
 
 ## License
 
-MIT, see [LICENSE](LICENSE). Data and bundled typefaces keep their own licenses (see the
+MIT, see [LICENSE](LICENSE). The data keeps its own licenses (see the
 Data section and the app's About panel).

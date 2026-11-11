@@ -1,7 +1,6 @@
 import AppKit
 
 let arguments = CommandLine.arguments
-FontRegistry.registerBundledFonts()
 if let i = arguments.firstIndex(of: "--snapshots") {
     let dir = i + 1 < arguments.count ? arguments[i + 1] : "build/snapshots"
     MainActor.assumeIsolated { Snapshots.run(outputDirectory: dir, arguments: arguments) }
