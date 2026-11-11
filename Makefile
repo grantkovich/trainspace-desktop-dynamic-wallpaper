@@ -29,10 +29,12 @@ ARCHS      ?= $(shell uname -m)
 MIN_OS     := 14.0
 triple      = $(1)-apple-macosx$(MIN_OS)
 bin_path    = $$(swift build -c $(CONFIG) --triple $(call triple,$(1)) --show-bin-path)
+# Where the zip, SHA256SUMS and install.sh are published (no trailing slash).
+DOWNLOAD_URL ?= https://downloads.grantkovich.com/trainspace
 ZIP        := $(BUILD_DIR)/$(APP_NAME)-$(VERSION).zip
 DMG        := $(BUILD_DIR)/$(APP_NAME)-$(VERSION).dmg
 
-.PHONY: build test app run install release zip dmg clean data snapshots icon
+.PHONY: build test app run install release zip dmg installer clean data snapshots icon
 
 build:
 	@for a in $(ARCHS); do swift build -c $(CONFIG) --triple $$a-apple-macosx$(MIN_OS) || exit 1; done
@@ -89,6 +91,14 @@ release:
 	  xcrun stapler staple $(DMG); \
 	fi
 	cd $(BUILD_DIR) && shasum -a 256 $(notdir $(ZIP)) $(notdir $(DMG)) | tee SHA256SUMS
+	$(MAKE) installer
+
+# build/install.sh: the one-line Terminal installer, for this version and DOWNLOAD_URL.
+installer:
+	sed -e 's#@APP@#$(APP_NAME)#g' -e 's#@VERSION@#$(VERSION)#g' -e 's#@BUNDLE_ID@#$(BUNDLE_ID)#g' \
+	  -e 's#@DOWNLOAD_URL@#$(DOWNLOAD_URL)#g' Tools/install.sh.in > $(BUILD_DIR)/install.sh
+	chmod +x $(BUILD_DIR)/install.sh
+	sh -n $(BUILD_DIR)/install.sh
 
 zip:
 	rm -f $(ZIP)

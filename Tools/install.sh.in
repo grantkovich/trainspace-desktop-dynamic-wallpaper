@@ -1,0 +1,64 @@
+#!/bin/sh
+# Installs @APP@ @VERSION@ into /Applications (or ~/Applications if you can't write there).
+#
+#   curl -fsSL @DOWNLOAD_URL@/install.sh | sh
+#
+# What it does, in order: downloads @APP@-@VERSION@.zip and SHA256SUMS from
+# @DOWNLOAD_URL@, checks the zip against the checksum, quits a running copy of @APP@
+# (so it can put your own wallpaper back), replaces the app and opens it. Nothing else.
+# Downloading with curl rather than a browser is why macOS doesn't ask you to approve the
+# app in System Settings: @APP@ is free and isn't notarized by Apple.
+set -eu
+
+APP="@APP@"
+VERSION="@VERSION@"
+BUNDLE_ID="@BUNDLE_ID@"
+BASE_URL="${INSTALL_BASE_URL:-@DOWNLOAD_URL@}"
+ZIP="${APP}-${VERSION}.zip"
+
+say() { printf '%s\n' "$*"; }
+fail() { say "${APP} install failed: $*" >&2; exit 1; }
+
+major=$(sw_vers -productVersion | cut -d. -f1)
+[ "${major}" -ge 14 ] || fail "${APP} needs macOS 14 Sonoma or later."
+
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/${APP}-install.XXXXXX")
+trap 'rc=$?; rm -rf "${tmp}"; exit $rc' EXIT
+
+say "Downloading ${APP} ${VERSION}…"
+curl -fsSL "${BASE_URL}/${ZIP}" -o "${tmp}/${ZIP}" || fail "couldn't download ${BASE_URL}/${ZIP}"
+curl -fsSL "${BASE_URL}/SHA256SUMS" -o "${tmp}/SHA256SUMS" || fail "couldn't download the checksums"
+
+say "Checking the download…"
+expected=$(awk -v f="${ZIP}" '$2 == f { print $1 }' "${tmp}/SHA256SUMS")
+[ -n "${expected}" ] || fail "no checksum for ${ZIP}"
+actual=$(shasum -a 256 "${tmp}/${ZIP}" | awk '{ print $1 }')
+[ "${expected}" = "${actual}" ] || fail "checksum mismatch; the download may be damaged. Try again."
+
+ditto -x -k "${tmp}/${ZIP}" "${tmp}/unzipped"
+[ -d "${tmp}/unzipped/${APP}.app" ] || fail "the zip doesn't contain ${APP}.app"
+
+dest="${INSTALL_DIR:-/Applications}"
+if [ ! -w "${dest}" ]; then
+  dest="${HOME}/Applications"
+  mkdir -p "${dest}"
+fi
+
+if pgrep -x "${APP}" >/dev/null 2>&1; then
+  say "Quitting the running ${APP} so it can put your wallpaper back…"
+  osascript -e "tell application id \"${BUNDLE_ID}\" to quit" >/dev/null 2>&1 || true
+  osascript -e "tell application \"${APP}\" to quit" >/dev/null 2>&1 || true
+  i=0
+  while pgrep -x "${APP}" >/dev/null 2>&1 && [ ${i} -lt 40 ]; do sleep 0.25; i=$((i + 1)); done
+  pgrep -x "${APP}" >/dev/null 2>&1 && fail "${APP} is still running. Quit it from its menu-bar item and run this again."
+fi
+
+rm -rf "${dest}/${APP}.app"
+ditto "${tmp}/unzipped/${APP}.app" "${dest}/${APP}.app"
+codesign --verify --deep --strict "${dest}/${APP}.app" || fail "the installed app's signature didn't verify"
+
+say "Installed ${dest}/${APP}.app"
+if [ -z "${NO_OPEN:-}" ]; then
+  open "${dest}/${APP}.app"
+  say "${APP} is in your menu bar."
+fi
