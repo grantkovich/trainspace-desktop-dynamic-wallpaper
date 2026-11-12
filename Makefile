@@ -35,9 +35,14 @@ DOWNLOAD_URL ?= https://github.com/$(REPO)/releases/download/v$(VERSION)
 # Always the newest release's installer.
 INSTALLER_URL := https://github.com/$(REPO)/releases/latest/download/install.sh
 ZIP        := $(BUILD_DIR)/$(APP_NAME)-$(VERSION).zip
+# Sparkle's release tools (generate_appcast), from the Sparkle-2.10.1.tar.xz release; see RELEASING.md.
+SPARKLE_BIN ?= $(HOME)/.wallpaper-signing/sparkle-2.10.1/bin
+CODESIGN    = codesign --force --options runtime $(if $(NOTARY_PROFILE),--timestamp,--timestamp=none) \
+              $(if $(SIGN_KEYCHAIN),--keychain "$(SIGN_KEYCHAIN)") --sign "$(SIGN_ID)"
+SPARKLE_FW  = $(APP)/Contents/Frameworks/Sparkle.framework
 DMG        := $(BUILD_DIR)/$(APP_NAME)-$(VERSION).dmg
 
-.PHONY: build test app run install release publish zip dmg installer clean data snapshots icon
+.PHONY: build test app run install release publish zip dmg installer appcast clean data snapshots icon
 
 build:
 	@for a in $(ARCHS); do swift build -c $(CONFIG) --triple $$a-apple-macosx$(MIN_OS) || exit 1; done
@@ -52,8 +57,16 @@ app: build
 	sed -e 's/$$(VERSION)/$(VERSION)/g' -e 's/$$(BUILD)/$(BUILD)/g' -e 's/$$(BUNDLE_ID)/$(BUNDLE_ID)/g' Resources/Info.plist > $(APP)/Contents/Info.plist
 	cp Resources/geodata-*.bin Resources/rail-*.bin $(APP)/Contents/Resources/
 	cp Resources/AppIcon.icns $(APP)/Contents/Resources/ 2>/dev/null || true
-	codesign --force --options runtime $(if $(NOTARY_PROFILE),--timestamp,--timestamp=none) \
-	  --entitlements $(ENTITLEMENTS) $(if $(SIGN_KEYCHAIN),--keychain "$(SIGN_KEYCHAIN)") --sign "$(SIGN_ID)" $(APP)
+	mkdir -p $(APP)/Contents/Frameworks
+	ditto "$(call bin_path,$(firstword $(ARCHS)))/Sparkle.framework" $(SPARKLE_FW)
+	# The app has the network entitlement, so Sparkle's downloader service isn't used.
+	rm -rf $(SPARKLE_FW)/Versions/B/XPCServices/Downloader.xpc
+	# Inside out, never --deep (sparkle-project.org/documentation/sandboxing).
+	$(CODESIGN) $(SPARKLE_FW)/Versions/B/XPCServices/Installer.xpc
+	$(CODESIGN) $(SPARKLE_FW)/Versions/B/Autoupdate
+	$(CODESIGN) $(SPARKLE_FW)/Versions/B/Updater.app
+	$(CODESIGN) $(SPARKLE_FW)
+	$(CODESIGN) --entitlements $(ENTITLEMENTS) $(APP)
 	@echo "Built $(APP) ($(VERSION) build $(BUILD), $(ARCHS))"
 
 run: app
@@ -93,7 +106,15 @@ release:
 	  xcrun stapler staple $(DMG); \
 	fi
 	cd $(BUILD_DIR) && shasum -a 256 $(notdir $(ZIP)) $(notdir $(DMG)) | tee SHA256SUMS
-	$(MAKE) installer
+	$(MAKE) installer appcast
+
+# build/appcast.xml: Sparkle's update feed for this release, signed with the EdDSA key in the
+# login keychain. Published with the release; the app reads releases/latest/download/appcast.xml.
+appcast:
+	rm -rf $(BUILD_DIR)/appcast && mkdir -p $(BUILD_DIR)/appcast && cp $(ZIP) $(BUILD_DIR)/appcast/
+	"$(SPARKLE_BIN)/generate_appcast" --download-url-prefix "$(DOWNLOAD_URL)/" \
+	  --link "https://grantkovich.com/apps/trainspace/" $(BUILD_DIR)/appcast
+	cp $(BUILD_DIR)/appcast/appcast.xml $(BUILD_DIR)/appcast.xml
 
 # build/install.sh: the one-line Terminal installer, for this version and DOWNLOAD_URL.
 installer:
@@ -105,9 +126,9 @@ installer:
 # Publish the release built by `make release` as GitHub release v$(VERSION) (tags HEAD).
 # The repo must be public for the downloads to work without a GitHub login.
 publish:
-	@test -f $(ZIP) -a -f $(DMG) -a -f $(BUILD_DIR)/SHA256SUMS -a -f $(BUILD_DIR)/install.sh || (echo "Run make release first"; exit 1)
+	@test -f $(ZIP) -a -f $(DMG) -a -f $(BUILD_DIR)/SHA256SUMS -a -f $(BUILD_DIR)/install.sh -a -f $(BUILD_DIR)/appcast.xml || (echo "Run make release first"; exit 1)
 	@test -z "$$(git status --porcelain)" || (echo "Commit your changes first"; exit 1)
-	gh release create v$(VERSION) $(ZIP) $(DMG) $(BUILD_DIR)/SHA256SUMS $(BUILD_DIR)/install.sh \
+	gh release create v$(VERSION) $(ZIP) $(DMG) $(BUILD_DIR)/SHA256SUMS $(BUILD_DIR)/install.sh $(BUILD_DIR)/appcast.xml \
 	  --repo $(REPO) --target "$$(git rev-parse HEAD)" --title "$(APP_NAME) $(VERSION)" --generate-notes
 	@echo "Installer: curl -fsSL $(INSTALLER_URL) | sh"
 

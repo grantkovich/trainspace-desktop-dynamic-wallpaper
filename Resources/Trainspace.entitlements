@@ -8,5 +8,15 @@
 	<true/>
 	<key>com.apple.security.personal-information.location</key>
 	<true/>
+	<!-- Sparkle's installer, from a sandboxed app (sparkle-project.org/documentation/sandboxing). -->
+	<key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
+	<array>
+		<string>com.grantkovich.trainspace-spks</string>
+		<string>com.grantkovich.trainspace-spki</string>
+	</array>
+	<!-- Without a paid Developer ID there's no Team ID, so library validation would refuse to
+	     load Sparkle.framework. It's signed with the same certificate as the app. -->
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
 </dict>
 </plist>

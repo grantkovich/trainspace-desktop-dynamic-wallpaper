@@ -18,7 +18,7 @@ public enum SourceError: Error, Equatable {
 /// Names the app, its version and a page where feed operators can reach the developer.
 let userAgent: String = {
     let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
-    return "Trainspace/\(version) (macOS live wallpaper; +https://grantkovich.com/trainspace/)"
+    return "Trainspace/\(version) (macOS live wallpaper; +https://grantkovich.com/apps/trainspace/)"
 }()
 
 extension URLSession {

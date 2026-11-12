@@ -1,5 +1,6 @@
 import TrainspaceCore
 import AppKit
+import Sparkle
 import SwiftUI
 
 @MainActor
@@ -8,6 +9,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var wallpaper: WallpaperController?
     private var power: PowerMonitor?
     private var systemWallpaper: SystemWallpaperSync?
+    /// Sparkle: checks the GitHub releases feed (SUFeedURL). It asks before checking
+    /// automatically, from the second launch on.
+    private var updater: SPUStandardUpdaterController?
     private var appearanceObservation: NSKeyValueObservation?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -21,6 +25,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         wallpaper?.show()
         systemWallpaper = SystemWallpaperSync(model: model)
         model.restoreWallpaperManually = { [weak self] in self?.systemWallpaper?.restoreManually() }
+        updater = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+        model.checkForUpdates = { [weak self] in
+            NSApp.activate()
+            self?.updater?.checkForUpdates(nil)
+        }
         if !model.settings.hasCompletedOnboarding {
             WindowRouter.shared.open(.welcome)
         }
