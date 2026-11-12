@@ -11,6 +11,16 @@ final class LocationProvider: NSObject, @preconcurrency CLLocationManagerDelegat
     private let manager = CLLocationManager()
     private var running = false
 
+    /// About 100 m instead of a kilometre: enough to tell which station you're nearest.
+    /// Only while station view follows the user, since it costs more power.
+    var precise = false {
+        didSet {
+            guard precise != oldValue else { return }
+            manager.desiredAccuracy = precise ? kCLLocationAccuracyHundredMeters : kCLLocationAccuracyKilometer
+            manager.distanceFilter = precise ? 100 : 1_000
+        }
+    }
+
     override init() {
         super.init()
         manager.delegate = self

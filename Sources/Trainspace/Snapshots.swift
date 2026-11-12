@@ -456,6 +456,29 @@ enum SettingsRender {
                 try? rep.representation(using: .png, properties: [:])?.write(to: dir.appendingPathComponent(name))
                 window.close()
             }
+            // Station view following the user, a block from Metro Center.
+            do {
+                let saved = model.settings
+                model.settings.viewMode = .station
+                model.settings.stationChoice = .nearest
+                model.stageUserPosition(Coordinate(latitude: 38.8990, longitude: -77.0300))
+                let host = NSHostingView(rootView: SettingsView(model: model, initialSection: .station)
+                    .environment(\.renderSynchronously, true))
+                let window = NSWindow(contentRect: CGRect(x: -5000, y: -5000, width: 820, height: 980),
+                                      styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
+                window.appearance = NSAppearance(named: appearance)
+                window.contentView = host
+                window.layoutIfNeeded()
+                RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+                let view = window.contentView!.superview ?? host
+                if let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                    view.cacheDisplay(in: view.bounds, to: rep)
+                    let name = "stationView-nearest-\(appearance == .aqua ? "light" : "dark").png"
+                    try? rep.representation(using: .png, properties: [:])?.write(to: dir.appendingPathComponent(name))
+                }
+                window.close()
+                model.settings = saved
+            }
             // Both welcome steps, as on first run.
             for step in WelcomeView.Step.allCases {
                 let host = NSHostingView(rootView: WelcomeView(model: model, initialStep: step)

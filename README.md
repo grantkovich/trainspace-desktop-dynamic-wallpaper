@@ -51,6 +51,11 @@ on battery.
   - **Metro and light rail stations:** an amber LED countdown: a dot in the line's color, the
     line's name ("RD", "A", "L1"), the destination and the minutes, down to `DUE`.
   - The station's name sign on top.
+  - **The station nearest me** (Settings › Station View, or "Nearest to Me" in the station
+    menu): follows your location and shows whichever station is closest, among the systems
+    you check. It switches only when another station is clearly closer (about 150 m), and
+    beyond 5 miles from any checked station shows the network map around you. Your location
+    is only compared with the bundled station list.
 
   Departure times come from the bundled timetables; countdown signs order trains by their live
   estimate. Delays come from live data where there is any.

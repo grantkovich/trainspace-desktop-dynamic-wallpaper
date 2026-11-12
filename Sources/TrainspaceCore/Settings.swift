@@ -12,6 +12,9 @@ public enum DisplayTarget: String, Codable, CaseIterable, Sendable { case all, m
 /// The whole network around a place, or one station with its departure boards.
 public enum ViewMode: String, Codable, CaseIterable, Sendable { case network, station }
 
+/// In station view: a station the user picked, or whichever is nearest to them.
+public enum StationChoice: String, Codable, CaseIterable, Sendable { case fixed, nearest }
+
 public enum LocationSetting: Codable, Hashable, Sendable {
     /// Follow Core Location.
     case system
@@ -102,6 +105,12 @@ public struct WallpaperSettings: Codable, Hashable, Sendable {
     public var stationZoomMiles: Double = 1.2 {
         didSet { stationZoomMiles = min(Self.stationZoomRange.upperBound, max(Self.stationZoomRange.lowerBound, stationZoomMiles)) }
     }
+    /// Station view follows the user's location to the nearest station (`.nearest`), or stays
+    /// on `stationKey` (`.fixed`).
+    public var stationChoice: StationChoice = .fixed
+    /// Systems that don't count for "the station nearest me". Stored as exclusions so systems
+    /// added later count by default.
+    public var nearestExcluded: Set<TransitSystem> = []
     /// Name every station with a small sign beside it.
     public var stationSigns = true
     /// Live Amtrak positions from the feed behind Amtrak's Track-a-Train map. Amtrak has no
@@ -120,6 +129,11 @@ public struct WallpaperSettings: Codable, Hashable, Sendable {
 
     public var radiusNM: Double { zoomMiles * Geo.nmPerMile }
 
+    /// The region's systems that count for "the station nearest me", in the region's order.
+    public func nearestSystems(in region: Region) -> [TransitSystem] {
+        region.systems.filter { !nearestExcluded.contains($0) }
+    }
+
     public var powerSettings: PowerSettings {
         PowerSettings(pollInterval: pollInterval, fpsCap: fpsCap, batterySaver: batterySaver)
     }
@@ -129,7 +143,7 @@ public struct WallpaperSettings: Codable, Hashable, Sendable {
              showRangeRings, showDotGrid, tintAppleMap, systems, showScheduled, labelMode, colorMode, trailMinutes, glyph,
              pulse, brightness, appearance, dynamicSource, infoEnabled, infoCorner, infoShowClock, infoShowCoordinates,
              infoShowCount, infoShowNearest, infoShowLegend, pollInterval, batterySaver, fpsCap, displays,
-             syncSystemWallpaper, viewMode, stationKey, stationZoomMiles, stationSigns, liveAmtrak, hasCompletedOnboarding,
+             syncSystemWallpaper, viewMode, stationKey, stationZoomMiles, stationSigns, liveAmtrak, stationChoice, nearestExcluded, hasCompletedOnboarding,
              schemaVersion
     }
 
@@ -179,6 +193,8 @@ public struct WallpaperSettings: Codable, Hashable, Sendable {
         stationZoomMiles = v(.stationZoomMiles, d.stationZoomMiles)
         stationSigns = v(.stationSigns, d.stationSigns)
         liveAmtrak = v(.liveAmtrak, d.liveAmtrak)
+        stationChoice = v(.stationChoice, d.stationChoice)
+        nearestExcluded = Set(v(.nearestExcluded, [Int]()).compactMap(TransitSystem.init(rawValue:)))
         hasCompletedOnboarding = v(.hasCompletedOnboarding, d.hasCompletedOnboarding)
         schemaVersion = v(.schemaVersion, 1)
         if schemaVersion < 2 {
@@ -229,6 +245,8 @@ public struct WallpaperSettings: Codable, Hashable, Sendable {
         try c.encode(stationZoomMiles, forKey: .stationZoomMiles)
         try c.encode(stationSigns, forKey: .stationSigns)
         try c.encode(liveAmtrak, forKey: .liveAmtrak)
+        try c.encode(stationChoice, forKey: .stationChoice)
+        try c.encode(nearestExcluded.map(\.rawValue).sorted(), forKey: .nearestExcluded)
 
         try c.encode(hasCompletedOnboarding, forKey: .hasCompletedOnboarding)
         try c.encode(schemaVersion, forKey: .schemaVersion)

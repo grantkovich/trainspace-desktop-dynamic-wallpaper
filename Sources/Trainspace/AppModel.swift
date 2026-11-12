@@ -54,6 +54,10 @@ final class AppModel {
     private(set) var resolvedPlaceName: String?
     private(set) var locationMessage: String?
     private(set) var isResolvingLocation = false
+    /// The user's last known position from Core Location.
+    private(set) var userPosition: Coordinate?
+    /// Following the user, but no counted station is within `NearestStation.maxDistanceNM`.
+    private(set) var nearestUnavailable = false
 
     // MARK: System wallpaper
     /// A display shows a map still and its own picture couldn't be put back automatically.
@@ -144,6 +148,7 @@ final class AppModel {
         }
         // A place chosen in Settings counts even if the welcome window was closed early.
         if self.settings.hasCompletedOnboarding || self.settings.location != .system { applyLocation() }
+        if followsNearestStation { updateLocationUse() }
         loopTask = Task { [weak self] in await self?.runLoop() }
     }
 
@@ -154,16 +159,28 @@ final class AppModel {
     /// The metro area on the wallpaper.
     var region: Region { Region.with(id: settings.region) }
 
-    /// The station shown in station view (nil in network view).
+    /// The station shown in station view (nil in network view, and while following the user
+    /// with no counted station nearby).
     var selectedStation: Int? {
-        guard settings.viewMode == .station else { return nil }
+        guard settings.viewMode == .station, !(followsNearestStation && nearestUnavailable) else { return nil }
         return rail?.station(key: settings.stationKey)
     }
 
-    /// What the map is centred on: the station in station view, otherwise the chosen place.
+    /// Station view picks the station nearest the user and follows them.
+    var followsNearestStation: Bool { settings.viewMode == .station && settings.stationChoice == .nearest }
+
+    /// What the map is centred on: the station in station view, otherwise the chosen place
+    /// (or the user, when following them with no station nearby).
     var mapCenter: Coordinate? {
         if let i = selectedStation, let s = rail?.stations[safe: i] { return s.position }
+        if followsNearestStation, nearestUnavailable, let userPosition { return userPosition }
         return center
+    }
+
+    /// How far the user is from the station they're following, in miles.
+    var nearestStationMiles: Double? {
+        guard followsNearestStation, let userPosition, let i = selectedStation, let s = rail?.stations[safe: i] else { return nil }
+        return Geo.distanceNM(userPosition, s.position) / Geo.nmPerMile
     }
 
     var mapRadiusNM: Double {
@@ -284,9 +301,16 @@ final class AppModel {
         choose(r.presets[0])
     }
 
-    /// Switches to station view on `station`.
+    /// Switches to station view on `station`, which stays put (stops following the user).
     func show(station: Station) {
+        settings.stationChoice = .fixed
         settings.stationKey = station.key
+        settings.viewMode = .station
+    }
+
+    /// Switches to station view on whichever station is nearest the user, following them.
+    func followNearestStation() {
+        settings.stationChoice = .nearest
         settings.viewMode = .station
     }
 
@@ -339,6 +363,13 @@ final class AppModel {
             rebuildSources()
         }
         if old.location != settings.location { applyLocation() }
+        if old.viewMode != settings.viewMode || old.stationChoice != settings.stationChoice {
+            if !followsNearestStation, nearestUnavailable { nearestUnavailable = false; updateDerived(); refreshBoards() }
+            updateLocationUse()
+            updateNearestStation()
+        } else if old.nearestExcluded != settings.nearestExcluded || old.systems != settings.systems {
+            updateNearestStation()
+        }
         if old.pollInterval != settings.pollInterval || old.fpsCap != settings.fpsCap || old.batterySaver != settings.batterySaver {
             updatePowerMode()
         }
@@ -383,11 +414,11 @@ final class AppModel {
             isResolvingLocation = center == nil
             location.start()
         case let .coordinates(c, name):
-            location.stop()
+            if !followsNearestStation { location.stop() }
             setCenter(c, name: name)
             if name == nil { reverseGeocode(c) }
         case let .search(query, resolved, name):
-            location.stop()
+            if !followsNearestStation { location.stop() }
             if let resolved {
                 setCenter(resolved, name: name)
             } else {
@@ -408,7 +439,39 @@ final class AppModel {
         }
     }
 
+    /// Core Location runs for "use my location" and for following the user in station view;
+    /// precisely only for the second.
+    private func updateLocationUse() {
+        location.precise = followsNearestStation
+        if followsNearestStation || settings.location == .system { location.start() } else { location.stop() }
+    }
+
+    /// Station view following the user: move to the nearest counted station, or (with none
+    /// nearby) to the network map around them. A position in another region brings its network.
+    private func updateNearestStation() {
+        guard followsNearestStation, let c = userPosition else { return }
+        if let other = Region.containing(c), other.id != settings.region {
+            settings.region = other.id   // install() comes back here once the network loads
+            return
+        }
+        guard let rail else { return }
+        let pick = NearestStation.pick(in: rail, near: c, systems: Set(settings.nearestSystems(in: region)),
+                                       current: rail.station(key: settings.stationKey))
+        let unavailable = pick == nil
+        if let pick, rail.stations[pick].key != settings.stationKey { settings.stationKey = rail.stations[pick].key }
+        if unavailable != nearestUnavailable {
+            nearestUnavailable = unavailable
+            updateDerived()
+            refreshBoards()
+        }
+    }
+
+    /// For headless renders: as if Core Location reported `c`.
+    func stageUserPosition(_ c: Coordinate) { systemLocationUpdated(c) }
+
     private func systemLocationUpdated(_ c: Coordinate) {
+        userPosition = c
+        updateNearestStation()
         guard case .system = settings.location else { return }
         isResolvingLocation = false
         locationMessage = nil
@@ -487,6 +550,7 @@ final class AppModel {
         stationLights = StationLights(network: rail)
         rebuildSources()
         refreshBoards()
+        updateNearestStation()
     }
 
     private func rebuildSources() {
